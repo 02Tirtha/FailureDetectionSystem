@@ -2,6 +2,8 @@ package com.tirtha.sfd.controller;
 
 import com.tirtha.sfd.model.SilentFailure;
 import com.tirtha.sfd.repository.SilentFailureRepository;
+import com.tirtha.sfd.service.FailureType;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,7 +30,7 @@ public class FailureDashboardController {
 
     // Failures by type
     @GetMapping("/type/{type}")
-    public List<SilentFailure> getFailuresByType(@PathVariable String type) {
+    public List<SilentFailure> getFailuresByType(@PathVariable FailureType type) {
         return failureRepository.findByFailureType(type);
     }
 }

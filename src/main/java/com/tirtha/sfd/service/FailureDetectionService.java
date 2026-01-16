@@ -44,31 +44,45 @@ public class FailureDetectionService {
             // Missing step
             if (currentEvent == null) {
                 saveFailure(
-                        "MISSING_STEP",
-                        step.getStepName(),
-                        "Expected step did not occur",
-                        workflowId
-                );
+                    FailureType.MISSING_STEP,
+                    Severity.HIGH,
+                    step.getStepName(),
+                    "Expected step did not occur",
+                    workflowId
+            );
                 continue;
             }
 
-            // Delay check (previous → current)
-            if (previousEvent != null) {
+           // Delay check (previous → current)
+        if (previousEvent != null) {
 
-                long duration = Duration.between(
-                        previousEvent.getOccurredAt(),
-                        currentEvent.getOccurredAt()
-                ).getSeconds();
+            long duration = Duration.between(
+                    previousEvent.getOccurredAt(),
+                    currentEvent.getOccurredAt()
+            ).getSeconds();
 
-                if (duration > step.getExpectedTimeSeconds()) {
-                    saveFailure(
-                            "DELAYED_STEP",
-                            step.getStepName(),
-                            "Step exceeded expected time",
-                            workflowId
-                    );
+            long expected = step.getExpectedTimeSeconds();
+
+            if (duration > expected) {
+
+                Severity severity;
+
+                if (duration <= 2 * expected) {
+                    severity = Severity.MEDIUM;
+                } else {
+                    severity = Severity.HIGH;
                 }
+
+                saveFailure(
+                        FailureType.DELAYED_STEP,
+                        severity,
+                        step.getStepName(),
+                        "Step delayed by " + duration + " seconds (expected " + expected + ")",
+                        workflowId
+                );
             }
+}
+
 
             previousEvent = currentEvent;
         }
@@ -91,16 +105,20 @@ public class FailureDetectionService {
         mailSender.send(message);
     }
 
-    private void saveFailure(String type, String stepName, String message, Long workflowId) {
+    private void saveFailure(FailureType type,
+        Severity severity,
+        String stepName,
+        String message,
+        Long workflowId) {
 
            boolean exists = failureRepository.existsByWorkflowIdAndStepNameAndFailureType
            (workflowId, stepName, type);
 
 
         if (exists) return;
-
         SilentFailure failure = new SilentFailure();
         failure.setFailureType(type);
+        failure.setSeverity(severity);
         failure.setStepName(stepName);
         failure.setMessage(message);
         failure.setDetectedAt(LocalDateTime.now());
@@ -110,6 +128,8 @@ public class FailureDetectionService {
         failure.setWorkflow(workflow);
 
         failureRepository.save(failure);
+        sendFailureEmail(failure);
+
         sendFailureEmail(failure);
     }
 }

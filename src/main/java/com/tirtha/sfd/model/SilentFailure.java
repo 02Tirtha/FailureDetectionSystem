@@ -2,6 +2,9 @@ package com.tirtha.sfd.model;
 
 import java.time.LocalDateTime;
 
+import com.tirtha.sfd.service.FailureType;
+import com.tirtha.sfd.service.Severity;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,7 +32,13 @@ public class SilentFailure {
     @Column(nullable = false)
     private LocalDateTime detectedAt;
 
-    private String failureType; // e.g., "MISSING_STEP", "DELAYED_STEP"
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private FailureType failureType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Severity severity;
 
     // Workflow reference
     @ManyToOne

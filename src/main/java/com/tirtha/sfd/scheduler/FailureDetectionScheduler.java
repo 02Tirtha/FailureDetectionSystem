@@ -1,4 +1,4 @@
-package com.tirtha.sfd.service;
+package com.tirtha.sfd.scheduler;
 
 
 import java.time.LocalDateTime;
@@ -7,12 +7,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.tirtha.sfd.repository.WorkflowRepository;
+import com.tirtha.sfd.service.FailureDetectionService;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class ScheduleFailureDetection {
+public class FailureDetectionScheduler {
      private final WorkflowRepository workflowRepository;
     private final FailureDetectionService failureDetectionService;
 
