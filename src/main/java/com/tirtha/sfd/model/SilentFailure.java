@@ -2,9 +2,6 @@ package com.tirtha.sfd.model;
 
 import java.time.LocalDateTime;
 
-import com.tirtha.sfd.service.FailureType;
-import com.tirtha.sfd.service.Severity;
-
 import jakarta.persistence.*;
 import lombok.*;
 

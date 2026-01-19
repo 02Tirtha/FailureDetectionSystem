@@ -21,6 +21,8 @@ public class FailureDetectionService {
     private final SilentFailureRepository failureRepository;
     private final JavaMailSender mailSender;
     private final MlAnomalyDetectionService mlAnomalyDetectionService;
+    private final MlLearningService mlLearningService;
+
 
 
     public void detectFailures(Long workflowId) {
@@ -200,6 +202,14 @@ public class FailureDetectionService {
     ).getSeconds();
 
     System.out.println("[ML-DETECT] Duration = " + duration + " seconds");
+
+    // 🔥 ML LEARNING (THIS WAS MISSING)
+        mlLearningService.updateThreshold(
+                workflowId,
+                current.getStepName(),
+                duration
+        );
+
 
     // 4️⃣ Check anomaly
     boolean anomalous =

@@ -1,7 +1,7 @@
 package com.tirtha.sfd.repository;
 
+import com.tirtha.sfd.model.FailureType;
 import com.tirtha.sfd.model.SilentFailure;
-import com.tirtha.sfd.service.FailureType;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
