@@ -2,6 +2,8 @@ package com.tirtha.sfd.service;
 
 import com.tirtha.sfd.model.*;
 import com.tirtha.sfd.repository.*;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -138,7 +140,7 @@ public class FailureDetectionService {
         String message,
         Long workflowId) {
 
-           boolean exists = failureRepository.existsByWorkflowIdAndStepNameAndFailureType
+           boolean exists = failureRepository.existsByWorkflow_IdAndStepNameAndFailureTypeAndResolvedFalse
            (workflowId, stepName, type);
 
 
@@ -149,6 +151,7 @@ public class FailureDetectionService {
         failure.setStepName(stepName);
         failure.setMessage(message);
         failure.setDetectedAt(LocalDateTime.now());
+        failure.setResolved(false);
 
         Workflow workflow = new Workflow();
         workflow.setId(workflowId);
@@ -182,7 +185,7 @@ public class FailureDetectionService {
     }
 
     boolean alreadyReported =
-            failureRepository.existsByWorkflowIdAndStepNameAndFailureType(
+            failureRepository.existsByWorkflow_IdAndStepNameAndFailureTypeAndResolvedFalse(
                     workflowId,
                     "EMAIL_SENT",
                     FailureType.ML_ANOMALY
@@ -226,7 +229,7 @@ public class FailureDetectionService {
 
     // 5️⃣ Save anomaly (avoid duplicates)
     boolean exists = failureRepository
-            .existsByWorkflowIdAndStepNameAndFailureType(
+            .existsByWorkflow_IdAndStepNameAndFailureTypeAndResolvedFalse(
                     workflowId,
                     "EMAIL_SENT",
                     FailureType.ML_ANOMALY
@@ -243,6 +246,22 @@ public class FailureDetectionService {
 
         System.out.println("🚨 ML ANOMALY SAVED");
     }
+
+    
+
+}
+    @Transactional
+public void resolveFailure(Long workflowId) {
+
+    List<SilentFailure> failures =
+        failureRepository.findByWorkflow_IdAndResolvedFalse(workflowId);
+
+    for (SilentFailure failure : failures) {
+        failure.setResolved(true);
+        failure.setResolvedAt(LocalDateTime.now());
+    }
+
+    failureRepository.saveAll(failures);
 }
 
 }

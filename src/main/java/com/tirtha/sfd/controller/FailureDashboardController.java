@@ -3,6 +3,7 @@ package com.tirtha.sfd.controller;
 import com.tirtha.sfd.model.FailureType;
 import com.tirtha.sfd.model.SilentFailure;
 import com.tirtha.sfd.repository.SilentFailureRepository;
+import com.tirtha.sfd.service.FailureDetectionService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,8 @@ import java.util.List;
 public class FailureDashboardController {
 
     private final SilentFailureRepository failureRepository;
+    private final FailureDetectionService failureDetectionService;
+
 
     // All failures
     @GetMapping
@@ -32,5 +35,12 @@ public class FailureDashboardController {
     @GetMapping("/type/{type}")
     public List<SilentFailure> getFailuresByType(@PathVariable FailureType type) {
         return failureRepository.findByFailureType(type);
+    }
+
+
+    @PostMapping("/resolve/{workflowId}")
+    public String resolveFailure(@PathVariable Long workflowId) {
+        failureDetectionService.resolveFailure(workflowId);
+        return "Failure resolved for workflow " + workflowId;
     }
 }

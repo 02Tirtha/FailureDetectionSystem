@@ -11,7 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "silent_failures" , indexes = {
-        @Index(name = "idx_workflow_step", columnList = "workflow_id, stepName")
+        @Index(name = "idx_workflow_step", columnList = "workflow_id, step_name")
     })
 public class SilentFailure {
     @Id
@@ -36,6 +36,13 @@ public class SilentFailure {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Severity severity;
+
+
+    @Column(name = "resolved")
+    private boolean resolved = false;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
 
     // Workflow reference
     @ManyToOne
