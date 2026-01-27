@@ -32,7 +32,7 @@ public List<Event> createEvents(@RequestBody List<Event> events) {
     List<Event> savedEvents = eventRepository.saveAll(events);
 
     for (Event event : savedEvents) {
-
+        
         // ML only for EMAIL_SENT
         if ("EMAIL_SENT".equals(event.getStepName())) {
 

@@ -21,6 +21,7 @@ public class Event {
 
     @Column(nullable = false)
     private LocalDateTime occurredAt;
+    
 
     // Which workflow this event belongs to
     @ManyToOne

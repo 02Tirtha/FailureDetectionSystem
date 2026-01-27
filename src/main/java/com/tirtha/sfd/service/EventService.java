@@ -18,7 +18,7 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final WorkflowRepository workflowRepository;
-
+    private final FailureDetectionService failureDetectionService;
     @Transactional
 public List<Event> saveEventsWithWorkflow(List<Event> events) {
 
@@ -34,7 +34,11 @@ public List<Event> saveEventsWithWorkflow(List<Event> events) {
         event.setWorkflow(workflow); // ✅ attach existing workflow
     }
 
-    return eventRepository.saveAll(events);
+    List< Event> savedEvents = eventRepository.saveAll(events);
+    Long workflowId = events.get(0).getWorkflow().getId();
+    failureDetectionService.detectFailures(workflowId);
+
+    return savedEvents;
 }
 
 

@@ -44,3 +44,4 @@ public class FailureDashboardController {
         return "Failure resolved for workflow " + workflowId;
     }
 }
+    
