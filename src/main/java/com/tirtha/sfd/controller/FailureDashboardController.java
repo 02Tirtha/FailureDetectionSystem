@@ -6,6 +6,8 @@ import com.tirtha.sfd.repository.SilentFailureRepository;
 import com.tirtha.sfd.service.FailureDetectionService;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -42,6 +44,16 @@ public class FailureDashboardController {
     public String resolveFailure(@PathVariable Long workflowId) {
         failureDetectionService.resolveFailure(workflowId);
         return "Failure resolved for workflow " + workflowId;
+    }
+
+
+    @PutMapping("/resolve/delayed")
+    public ResponseEntity<String> resolveDelayedStep(
+            @RequestParam Long workflowId,
+            @RequestParam String stepName
+    ) {
+        failureDetectionService.resolveDelayedStep(workflowId, stepName);
+        return ResponseEntity.ok("DELAYED_STEP resolved successfully");
     }
 }
     

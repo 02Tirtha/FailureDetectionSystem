@@ -1,11 +1,14 @@
 package com.tirtha.sfd.scheduler;
 
-
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.tirtha.sfd.model.Workflow;
 import com.tirtha.sfd.repository.WorkflowRepository;
 import com.tirtha.sfd.service.FailureDetectionService;
 
@@ -14,24 +17,38 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class FailureDetectionScheduler {
-     private final WorkflowRepository workflowRepository;
+
+    private final WorkflowRepository workflowRepository;
     private final FailureDetectionService failureDetectionService;
 
-    // Run every minute (60000 ms)
+    // Track workflow IDs that are currently being processed
+    private final Set<Long> runningWorkflows = new HashSet<>();
+
+    // Run every minute
     @Scheduled(fixedRate = 60000)
     public void detectFailuresForAllWorkflows() {
         System.out.println("Scheduler running at: " + LocalDateTime.now());
-        workflowRepository.findAll()
-                .forEach(workflow -> {
-                    System.out.println("Checking workflow ID: " + workflow.getId());
-                    failureDetectionService.detectFailures(workflow.getId());
-                });
+
+        List<Workflow> workflows = workflowRepository.findAll();
+
+        for (Workflow workflow : workflows) {
+
+            // Skip workflow if it's already running in this JVM
+            if (runningWorkflows.contains(workflow.getId())) {
+                System.out.println("Workflow ID " + workflow.getId() + " is already running. Skipping...");
+                continue;
+            }
+
+            // Mark workflow as running
+            runningWorkflows.add(workflow.getId());
+
+            try {
+                // Detect failures
+                failureDetectionService.detectFailures(workflow.getId());
+            } finally {
+                // Remove from running set after detection
+                runningWorkflows.remove(workflow.getId());
+            }
+        }
     }
-
-    
-        // Every 1 minute, Spring calls detectFailuresForAllWorkflows().
-        // The method fetches all workflows from the database.
-        // For each workflow, it runs your failure detection logic.
-        // All missing/delayed steps are automatically detected and stored.
-
 }

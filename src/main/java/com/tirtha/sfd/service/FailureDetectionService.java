@@ -1,304 +1,208 @@
 package com.tirtha.sfd.service;
 
-import com.tirtha.sfd.model.*;
-import com.tirtha.sfd.repository.*;
-
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.tirtha.sfd.model.Event;
+import com.tirtha.sfd.model.FailureType;
+import com.tirtha.sfd.model.Severity;
+import com.tirtha.sfd.model.SilentFailure;
+import com.tirtha.sfd.model.Workflow;
+import com.tirtha.sfd.model.WorkflowStep;
+import com.tirtha.sfd.repository.EventRepository;
+import com.tirtha.sfd.repository.SilentFailureRepository;
+import com.tirtha.sfd.repository.WorkflowStepRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class FailureDetectionService {
 
-    private final WorkflowStepRepository stepRepository;
     private final EventRepository eventRepository;
-    private final SilentFailureRepository failureRepository;
-    private final JavaMailSender mailSender;
+    private final SilentFailureRepository silentFailureRepository;
+    private final SilentFailureMailService mailService;
     private final MlAnomalyDetectionService mlAnomalyDetectionService;
-    private final MlLearningService mlLearningService;
+    private final WorkflowStepRepository workflowStepRepository;
 
-   public void detectFailures(Long workflowId) {
+    /**
+     * Detect failures for a single incoming event
+     */
+    @Transactional
+    public void detectAndRecordFailures(Event currentEvent) {
 
-    List<WorkflowStep> steps =
-            stepRepository.findByWorkflowIdOrderByStepOrder(workflowId);
+        Workflow workflow = currentEvent.getWorkflow();
+        String currentStep = currentEvent.getStepName();
+        LocalDateTime currentTime = currentEvent.getOccurredAt();
 
-    List<Event> events =
-            eventRepository.findByWorkflowIdOrderByOccurredAt(workflowId);
+        List<WorkflowStep> steps =
+                workflowStepRepository.findByWorkflowOrderByStepOrderAsc(workflow);
 
-    Map<String, Event> eventMap = new HashMap<>();
-    for (Event e : events) {
-        eventMap.put(e.getStepName(), e);
-    }
-
-    // Find last completed step order
-    int lastCompletedOrderTemp = -1;
-    WorkflowStep lastCompletedStep = null;
-
-    for (WorkflowStep step : steps) {
-        if (eventMap.containsKey(step.getStepName())) {
-            lastCompletedOrderTemp = step.getStepOrder();
-            lastCompletedStep = step;
-        }
-    }
-
-    final int lastCompletedOrder = lastCompletedOrderTemp;
-    Event previousEvent = null;
-
-    /* ---------- STEP LOOP ---------- */
-    for (WorkflowStep step : steps) {
-
-        Event currentEvent = eventMap.get(step.getStepName());
-
-        /* ---------- SKIPPED MISSING ---------- */
-        if (currentEvent == null) {
-
-            if (step.getStepOrder() < lastCompletedOrder) {
-                saveFailure(
-                        FailureType.MISSING_STEP,
-                        Severity.HIGH,
-                        step.getStepName(),
-                        "Step was skipped",
-                        workflowId
-                );
-            }
-            continue;
-        }
-
-        // Auto-resolve missing if step arrived
-        autoResolveFailureIfExists(
-                workflowId,
-                step.getStepName(),
-                FailureType.MISSING_STEP
-        );
-
-        /* ---------- DELAY CHECK ---------- */
-        if (previousEvent != null) {
-
-            long duration = Duration.between(
-                    previousEvent.getOccurredAt(),
-                    currentEvent.getOccurredAt()
-            ).getSeconds();
-
-            long expected = step.getExpectedTimeSeconds();
-            boolean mlTriggered = false;
-
-            if ("EMAIL_SENT".equals(step.getStepName())) {
-                if (mlAnomalyDetectionService.isAnomalous(
-                        workflowId,
-                        step.getStepName(),
-                        duration
-                )) {
-                    mlTriggered = true;
-                    saveFailure(
-                            FailureType.ML_ANOMALY,
-                            Severity.HIGH,
-                            step.getStepName(),
-                            "ML detected abnormal delay: " + duration,
-                            workflowId
-                    );
-                }
-            }
-
-            if (!mlTriggered && duration > expected) {
-                Severity severity =
-                        duration <= 2 * expected ? Severity.MEDIUM : Severity.HIGH;
-
-                saveFailure(
-                        FailureType.DELAYED_STEP,
-                        severity,
-                        step.getStepName(),
-                        "Step delayed by " + duration +
-                                " seconds (expected " + expected + ")",
-                        workflowId
-                );
-            }
-        }
-
-            // Keep reference to previous step BEFORE updating
-        Event prev = previousEvent;
-
-        previousEvent = currentEvent;
-
-        // Auto-resolve delay of PREVIOUS step once CURRENT step arrives
-        if (prev != null) {
-            failureRepository
-                .findFirstByWorkflow_IdAndStepNameAndFailureTypeAndResolvedFalse(
-                    workflowId,
-                    prev.getStepName(),
-                    FailureType.DELAYED_STEP
-                )
-                .ifPresent(failure -> {
-                    failure.setResolved(true);
-                    failure.setResolvedAt(LocalDateTime.now());
-                    failureRepository.save(failure);
-                    System.out.println("✅ Auto-resolved DELAYED_STEP for: " + prev.getStepName());
-                });
-        }
-
-        
-
-    }
-
-    /* ---------- TIMEOUT-BASED MISSING (CRITICAL FIX) ---------- */
-    if (lastCompletedStep != null) {
-
-        WorkflowStep nextExpectedStep = steps.stream()
-                .filter(s -> s.getStepOrder() == lastCompletedOrder + 1)
+        WorkflowStep currentStepDef = steps.stream()
+                .filter(s -> s.getStepName().equals(currentStep))
                 .findFirst()
                 .orElse(null);
 
-        if (nextExpectedStep != null &&
-            !eventMap.containsKey(nextExpectedStep.getStepName())) {
+        if (currentStepDef == null) return;
 
-            Event lastEvent = eventMap.get(lastCompletedStep.getStepName());
-            long waitedSeconds = Duration.between(
-                    lastEvent.getOccurredAt(),
-                    LocalDateTime.now()
-            ).getSeconds();
+        int currentOrder = currentStepDef.getStepOrder();
+        boolean isLastStep =
+                currentOrder == steps.get(steps.size() - 1).getStepOrder();
 
-            if (waitedSeconds > nextExpectedStep.getExpectedTimeSeconds()) {
-                saveFailure(
+        /* 🔴 MISSING STEP DETECTION */
+        for (WorkflowStep step : steps) {
+            if (step.getStepOrder() >= currentOrder) break;
+
+            boolean occurred =
+                    eventRepository.existsByWorkflowAndStepName(workflow, step.getStepName());
+
+            if (!occurred) {
+                createFailureOnce(
+                        workflow,
+                        step.getStepName(),
                         FailureType.MISSING_STEP,
-                        Severity.HIGH,
-                        nextExpectedStep.getStepName(),
-                        "Step did not occur within expected time",
-                        workflowId
+                        "Expected step did not occur"
                 );
             }
         }
 
-        boolean workflowCompleted =
-            eventMap.containsKey("WORKFLOW_COMPLETED");
+        /* 🟠 DELAYED STEP DETECTION */
+        if (currentOrder > 1) {
+            WorkflowStep prevStep = steps.stream()
+                    .filter(s -> s.getStepOrder() == currentOrder - 1)
+                    .findFirst()
+                    .orElse(null);
 
-        if (workflowCompleted) {
-            return; // stop detection for this workflow
+            if (prevStep != null) {
+                Event prevEvent =
+                        eventRepository.findTopByWorkflowAndStepNameOrderByOccurredAtDesc(
+                                workflow, prevStep.getStepName());
+
+                if (prevEvent != null) {
+                    long delay =
+                            Duration.between(prevEvent.getOccurredAt(), currentTime).getSeconds();
+
+                    if (delay > currentStepDef.getExpectedTimeSeconds()) {
+
+                        // 🔑 Create DELAYED_STEP ONLY ONCE
+                        createFailureOnce(
+                                workflow,
+                                currentStep,
+                                FailureType.DELAYED_STEP,
+                                "Step delayed by " + delay +
+                                        " seconds (expected " +
+                                        currentStepDef.getExpectedTimeSeconds() + ")"
+                        );
+                    } else if (!isLastStep) {
+                        // ✅ Auto-resolve delayed step when flow continues
+                        silentFailureRepository.resolveDelayedSteps(
+                                workflow.getId(), currentStep
+                        );
+                    }
+                }
+            }
         }
 
-    
+        /* 🟣 ML ANOMALY DETECTION */
+        if ("EMAIL_SENT".equals(currentStep)) {
+            WorkflowStep prevStep = steps.stream()
+                    .filter(s -> s.getStepOrder() == currentOrder - 1)
+                    .findFirst()
+                    .orElse(null);
+
+            if (prevStep != null) {
+                Event prevEvent =
+                        eventRepository.findTopByWorkflowAndStepNameOrderByOccurredAtDesc(
+                                workflow, prevStep.getStepName());
+
+                if (prevEvent != null) {
+                    long duration =
+                            Duration.between(prevEvent.getOccurredAt(), currentTime).getSeconds();
+
+                    if (mlAnomalyDetectionService.isAnomalous(
+                            workflow.getId(), currentStep, duration)) {
+
+                        createFailureOnce(
+                                workflow,
+                                currentStep,
+                                FailureType.ML_ANOMALY,
+                                "ML detected abnormal delay"
+                        );
+                    }
+                }
+            }
+        }
     }
-}
 
+    /**
+     * Create failure ONLY if it does not already exist
+     */
+    private void createFailureOnce(
+            Workflow workflow,
+            String stepName,
+            FailureType type,
+            String message
+    ) {
+        boolean exists =
+                silentFailureRepository
+                        .existsByWorkflowAndStepNameAndFailureType(
+                                workflow, stepName, type
+                        );
 
-
-    @Async
-    public void sendFailureEmail(SilentFailure failure) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo("admin@example.com");
-        message.setSubject("Workflow Failure Detected: " + failure.getStepName());
-        message.setText(
-                "Failure Type: " + failure.getFailureType() + "\n" +
-                        "Severity: " + failure.getSeverity() + "\n" +
-                        "Step: " + failure.getStepName() + "\n" +
-                        "Message: " + failure.getMessage() + "\n" +
-                        "Workflow ID: " + failure.getWorkflow().getId() + "\n" +
-                        "Detected at: " + failure.getDetectedAt()
-        );
-
-        mailSender.send(message);
-    }
-
-    private void saveFailure(FailureType type, Severity severity, String stepName, String message, Long workflowId) {
-    boolean exists =
-    type == FailureType.DELAYED_STEP
-        ? failureRepository.existsByWorkflow_IdAndStepNameAndFailureType(
-              workflowId, stepName, type)
-        : failureRepository.existsByWorkflow_IdAndStepNameAndFailureTypeAndResolvedFalse(
-              workflowId, stepName, type);
         if (exists) return;
 
         SilentFailure failure = new SilentFailure();
-        failure.setFailureType(type);
-        failure.setSeverity(severity);
+        failure.setWorkflow(workflow);
         failure.setStepName(stepName);
+        failure.setFailureType(type);
+        failure.setSeverity(Severity.HIGH);
         failure.setMessage(message);
         failure.setDetectedAt(LocalDateTime.now());
         failure.setResolved(false);
 
-        Workflow workflow = new Workflow();
-        workflow.setId(workflowId);
-        failure.setWorkflow(workflow);
-
-        failureRepository.save(failure);
-        sendFailureEmail(failure);
+        silentFailureRepository.save(failure);
+        mailService.sendAlert(failure);
     }
 
+    /**
+     * Detect failures for all events of a workflow (scheduler)
+     */
     @Transactional
-    private void autoResolveFailureIfExists(Long workflowId, String stepName, FailureType type) {
-        failureRepository
-                .findFirstByWorkflow_IdAndStepNameAndFailureTypeAndResolvedFalse(workflowId, stepName, type)
-                .ifPresent(failure -> {
-                    failure.setResolved(true);
-                    failure.setResolvedAt(LocalDateTime.now());
-                    failureRepository.save(failure);
-                    System.out.println("✅ Auto-resolved " + type + " for step: " + stepName);
-                });
-    }
-
-        @Transactional
-private void autoResolveAllDelayedStepsUpToCurrent(Long workflowId, Map<String, Event> eventMap, String currentStepName) {
-    List<SilentFailure> unresolved = failureRepository.findByWorkflow_IdAndFailureTypeAndResolvedFalse(workflowId, FailureType.DELAYED_STEP);
-
-    for (SilentFailure failure : unresolved) {
-        // Check if the step exists in the current events
-        if (eventMap.containsKey(failure.getStepName())) {
-            failure.setResolved(true);
-            failure.setResolvedAt(LocalDateTime.now());
-            failureRepository.save(failure);
-            System.out.println("✅ Auto-resolved DELAYED_STEP for: " + failure.getStepName());
+    public void detectFailures(Long workflowId) {
+        List<Event> events =
+                eventRepository.findByWorkflowIdOrderByOccurredAt(workflowId);
+        for (Event event : events) {
+            detectAndRecordFailures(event);
         }
     }
-}
 
+    public void detectForWorkflow(Long workflowId) {
+        detectFailures(workflowId);
+    }
 
+    /**
+     * Manual resolve (used by API)
+     */
     @Transactional
     public void resolveFailure(Long workflowId) {
-        List<SilentFailure> failures = failureRepository.findByWorkflow_IdAndResolvedFalse(workflowId);
+        List<SilentFailure> failures =
+                silentFailureRepository.findByWorkflow_IdAndResolvedFalse(workflowId);
+
+        LocalDateTime now = LocalDateTime.now();
         for (SilentFailure failure : failures) {
             failure.setResolved(true);
-            failure.setResolvedAt(LocalDateTime.now());
+            failure.setResolvedAt(now);
         }
-        failureRepository.saveAll(failures);
+        silentFailureRepository.saveAll(failures);
     }
 
-    // ----------------- ML detection logic -----------------
-    public void detectForWorkflow(Long workflowId) {
-        System.out.println("ML DETECTION STARTED for workflow " + workflowId);
+    @Transactional
+public void resolveDelayedStep(Long workflowId, String stepName) {
+    silentFailureRepository.resolveDelayedSteps(workflowId, stepName);
+}
 
-        List<Event> events = eventRepository.findByWorkflowIdOrderByOccurredAt(workflowId);
-        if (events.size() < 2) return;
-
-        Event current = events.get(events.size() - 1);
-        if (!"EMAIL_SENT".equals(current.getStepName())) return;
-
-        boolean alreadyReported = failureRepository.existsByWorkflow_IdAndStepNameAndFailureTypeAndResolvedFalse(
-                workflowId, "EMAIL_SENT", FailureType.ML_ANOMALY
-        );
-        if (alreadyReported) return;
-
-        Event previous = events.get(events.size() - 2);
-        long duration = Duration.between(previous.getOccurredAt(), current.getOccurredAt()).getSeconds();
-
-        mlLearningService.updateThreshold(workflowId, current.getStepName(), duration);
-
-        boolean anomalous = mlAnomalyDetectionService.isAnomalous(workflowId, "EMAIL_SENT", duration);
-        if (!anomalous) return;
-
-        saveFailure(
-                FailureType.ML_ANOMALY,
-                Severity.HIGH,
-                "EMAIL_SENT",
-                "ML detected abnormal delay: " + duration + " seconds",
-                workflowId
-        );
-
-        System.out.println("🚨 ML ANOMALY SAVED");
-    }
 }
