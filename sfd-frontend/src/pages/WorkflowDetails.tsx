@@ -18,10 +18,14 @@ const WorkflowDetails = () => {
       <ul className="mt-4">
         {failures.map(f => (
           <li key={f.id}>
-            {f.stepName} - {f.failureType}
+            <strong>{f.stepName}</strong> - {f.failureType} —
+            <span style={{color: f.resolved ? "green" : "red"}}>
+              {f.resolved ? "Resolved" : "Unresolved"}
+            </span>
           </li>
         ))}
       </ul>
+     
     </div>
   );
 };

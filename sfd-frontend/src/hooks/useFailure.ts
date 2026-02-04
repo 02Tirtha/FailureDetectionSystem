@@ -7,6 +7,9 @@ export const useFailures = (workflowId: number) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if(!workflowId) return;
+
+    setLoading(true);
     getFailuresByWorkflow(workflowId)
       .then(setFailures)
       .finally(() => setLoading(false));

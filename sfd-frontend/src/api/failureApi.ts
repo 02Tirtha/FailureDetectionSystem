@@ -5,7 +5,7 @@ export const getFailuresByWorkflow = async (
   workflowId: number
 ): Promise<Failure[]> => {
   const response = await api.get(
-    `/failures?workflowId=${workflowId}`
+    `/dashboard/failures?workflowId=${workflowId}`
   );
   return response.data;
 };
@@ -14,7 +14,7 @@ export const resolveFailure = async (
   workflowId: number,
   stepName: string
 ) => {
-  return api.post("/failures/resolve", {
+  return api.post("/dashboard/  failures/resolve", {
     workflowId,
     stepName,
   });

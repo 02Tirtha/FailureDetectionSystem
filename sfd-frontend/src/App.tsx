@@ -1,22 +1,16 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
-import Workflows from "./pages/Workflows";
 import WorkflowDetails from "./pages/WorkflowDetails";
-import Failures from "./pages/Failure";
-import Navbar from "./components/Navbar";
 
-const App = () => {
+function App() {
   return (
     <BrowserRouter>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/workflows" element={<Workflows />} />
-        <Route path="/workflows/:id" element={<WorkflowDetails />} />
-        <Route path="/failures" element={<Failures />} />
-      </Routes>
+    <Routes>
+      <Route path="/" element={<Dashboard></Dashboard>}></Route>
+      <Route path="/workflows/:id" element={<WorkflowDetails/>}></Route>
+    </Routes>
     </BrowserRouter>
   );
-};
+}
 
 export default App;

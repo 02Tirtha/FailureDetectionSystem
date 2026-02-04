@@ -4,6 +4,8 @@ package com.tirtha.sfd.repository;
 
 import java.util.List;
 
+import javax.print.attribute.standard.Severity;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -66,5 +68,9 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
                 @Param("stepName") String stepName
         );
 
+        long count();
+        long countByResolvedFalse();
+        long countBySeverity(com.tirtha.sfd.model.Severity high);        
+        long countByFailureType(FailureType failureType);
 
 }

@@ -6,5 +6,5 @@ import com.tirtha.sfd.model.Workflow;
 
 public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
     
-    
+    long count();
 } 
