@@ -47,4 +47,6 @@ public void resolveAllFailures(Long workflowId) {
 
         failureRepo.saveAll(failures);
     }
+
+
 }

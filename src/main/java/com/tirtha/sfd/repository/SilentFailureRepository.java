@@ -43,8 +43,9 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
 
     List<SilentFailure> findByWorkflow_IdAndResolvedFalse(Long workflowId);
 
-    List<Event> findByWorkflowIdAndStepNameAndFailureTypeAndResolvedTrue(Long workflowId, String stepName,
-            String string);
+    @Query("select e.stepName from Event e where e.workflow = :workflow")
+    List<String> findStepNamesByWorkflow(@Param("workflow") Workflow workflow);
+
 
     List<SilentFailure> findByWorkflowAndStepNameAndFailureType(Workflow workflow, String stepName, FailureType type);
 
@@ -72,5 +73,18 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
         long countByResolvedFalse();
         long countBySeverity(com.tirtha.sfd.model.Severity high);        
         long countByFailureType(FailureType failureType);
+
+        @Query("""
+        SELECT 
+        COUNT(f),
+        SUM(CASE WHEN f.resolved = false THEN 1 ELSE 0 END),
+        MAX(f.detectedAt)
+        FROM SilentFailure f
+        WHERE f.workflow.id = :workflowId
+        """)
+        Object[] getFailureStats(@Param("workflowId") Long workflowId);
+
+        Object[] getFailureStatsByWorkflowId(Long id);
+
 
 }

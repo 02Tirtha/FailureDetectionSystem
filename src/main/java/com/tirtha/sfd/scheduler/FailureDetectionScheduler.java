@@ -1,9 +1,9 @@
 package com.tirtha.sfd.scheduler;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -21,33 +21,35 @@ public class FailureDetectionScheduler {
     private final WorkflowRepository workflowRepository;
     private final FailureDetectionService failureDetectionService;
 
-    // Track workflow IDs that are currently being processed
-    private final Set<Long> runningWorkflows = new HashSet<>();
+    // Thread-safe set
+    private final Set<Long> runningWorkflows =
+            ConcurrentHashMap.newKeySet();
 
     // Run every minute
     @Scheduled(fixedRate = 60000)
     public void detectFailuresForAllWorkflows() {
+
         System.out.println("Scheduler running at: " + LocalDateTime.now());
 
         List<Workflow> workflows = workflowRepository.findAll();
 
         for (Workflow workflow : workflows) {
 
-            // Skip workflow if it's already running in this JVM
-            if (runningWorkflows.contains(workflow.getId())) {
-                System.out.println("Workflow ID " + workflow.getId() + " is already running. Skipping...");
+            Long workflowId = workflow.getId();
+
+            // Skip if already running
+            if (!runningWorkflows.add(workflowId)) {
+                System.out.println("Workflow ID " + workflowId + " already running, skipping");
                 continue;
             }
 
-            // Mark workflow as running
-            runningWorkflows.add(workflow.getId());
-
             try {
-                // Detect failures
-                failureDetectionService.detectFailures(workflow.getId());
+              failureDetectionService.detectWorkflowFailures(workflowId);
+
+            } catch (Exception e) {
+                e.printStackTrace();
             } finally {
-                // Remove from running set after detection
-                runningWorkflows.remove(workflow.getId());
+                runningWorkflows.remove(workflowId);
             }
         }
     }

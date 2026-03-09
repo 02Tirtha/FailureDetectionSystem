@@ -1,5 +1,6 @@
 package com.tirtha.sfd.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
@@ -11,12 +12,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tirtha.sfd.model.Event;
+import com.tirtha.sfd.model.Workflow;
 import com.tirtha.sfd.repository.EventRepository;
+import com.tirtha.sfd.repository.WorkflowRepository;
 import com.tirtha.sfd.service.EventService;
-import com.tirtha.sfd.service.FailureDetectionService;
 import com.tirtha.sfd.service.FailureResolutionService;
-import com.tirtha.sfd.service.MlLearningService;
 
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -24,109 +26,85 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EventController {
 
-    private final EventRepository eventRepository;
-    private final MlLearningService mlLearningService;
-    private final FailureDetectionService failureDetectionService;
     private final EventService eventService;
     private final FailureResolutionService resolutionService;
-    // Create events
-    @PostMapping("/batch")
-public List<Event> createEvents(@RequestBody List<Event> events) {
+    private final EventRepository eventRepository;
+    private final WorkflowRepository workflowRepository;
 
-    List<Event> savedEvents = eventRepository.saveAll(events);
+    // ---------------- CREATE EVENTS ----------------
 
-    for (Event event : savedEvents) {
-        
-        // ML only for EMAIL_SENT
-        if ("EMAIL_SENT".equals(event.getStepName())) {
-
-            // find previous event
-            eventRepository
-                .findByWorkflowIdOrderByOccurredAt(event.getWorkflow().getId())
-                .stream()
-                .filter(e -> e.getOccurredAt().isBefore(event.getOccurredAt())) //exclude current event to avoid matching itself
-                .reduce((first, second) -> second) //Go through the list and keep replacing the value with the next one to get most recent event
-                .ifPresent(previousEvent -> {
-
-                    long duration = java.time.Duration.between(
-                            previousEvent.getOccurredAt(),
-                            event.getOccurredAt()
-                    ).getSeconds();
-
-                    mlLearningService.updateThreshold(
-                            event.getWorkflow().getId(),
-                            "EMAIL_SENT",
-                            duration
-                    );
-                });
-        }
-    }
-
-    // 🚀 AUTO TRIGGER FAILURE DETECTION
-    savedEvents.stream()
-            .map(e -> e.getWorkflow().getId())
-            .distinct()
-            .forEach(failureDetectionService::detectFailures);
-
-    failureDetectionService.detectFailures(events.get(0).getWorkflow().getId());
-
-
-    return savedEvents;
-}
-
-
-    // Get all events for a workflow
-    @GetMapping
-    public List<Event> getEventsByWorkflow(@RequestParam Long workflowId) {
-        return eventRepository.findByWorkflowIdOrderByOccurredAt(workflowId);
-    }
-    
-      @PostMapping
+    @PostMapping
     public ResponseEntity<Void> receiveEvent(@RequestBody Event event) {
         eventService.handleEvent(event);
         return ResponseEntity.ok().build();
     }
 
- 
-    /**
- * Resolve failures for a specific step/event in a workflow
- * Accepts JSON like: { "workflowId": 1, "stepName": "EMAIL_SENT" }
- */
-@PostMapping("/resolve")
-public ResponseEntity<String> resolveStep(@RequestBody ResolveRequest request) {
-    resolutionService.resolveFailures(request.getWorkflowId(), request.getStepName());
-    return ResponseEntity.ok("Failures resolved for workflow " + request.getWorkflowId() +
-                             ", step " + request.getStepName());
-}
+    @PostMapping("/batch")
+public ResponseEntity<String> createEvents(@RequestBody List<EventRequest> requests) {
+    for (EventRequest request : requests) {
+        Workflow workflow = workflowRepository.findById(request.getWorkflowId())
+                .orElseThrow(() -> new RuntimeException("Workflow not found"));
 
-/**
- * Resolve all failures for a workflow
- * Accepts JSON like: { "workflowId": 1 }
- */
-@PostMapping("/resolve-all")
-public ResponseEntity<String> resolveAll(@RequestBody ResolveAllRequest request) {
-    resolutionService.resolveAllFailures(request.getWorkflowId());
-    return ResponseEntity.ok("All failures resolved for workflow " + request.getWorkflowId());
+        Event event = new Event();
+        event.setWorkflow(workflow);
+        event.setStepName(request.getStepName());
+        event.setOccurredAt(request.getOccurredAt());
+
+        eventRepository.save(event);
+    }
+    return ResponseEntity.ok("Events created successfully");
 }
 
 
-     // DTOs
+    // ---------------- READ EVENTS ----------------
+
+    @GetMapping("/get")
+    public List<Event> getEventsByWorkflow(@RequestParam Long workflowId) {
+        return eventService.getEventsByWorkflow(workflowId);
+    }
+
+    // ---------------- RESOLUTION ----------------
+
+    @PostMapping("/resolve")
+    public ResponseEntity<String> resolveStep(@RequestBody ResolveRequest request) {
+        resolutionService.resolveFailures(
+                request.getWorkflowId(),
+                request.getStepName()
+        );
+        return ResponseEntity.ok(
+                "Failures resolved for workflow " + request.getWorkflowId()
+        );
+    }
+
+    @PostMapping("/resolve-all")
+    public ResponseEntity<String> resolveAll(@RequestBody ResolveAllRequest request) {
+        resolutionService.resolveAllFailures(request.getWorkflowId());
+        return ResponseEntity.ok(
+                "All failures resolved for workflow " + request.getWorkflowId()
+        );
+    }
+
+    // ---------------- DTOs ----------------
+
     public static class ResolveRequest {
         private Long workflowId;
         private String stepName;
-
         public Long getWorkflowId() { return workflowId; }
         public void setWorkflowId(Long workflowId) { this.workflowId = workflowId; }
-
         public String getStepName() { return stepName; }
         public void setStepName(String stepName) { this.stepName = stepName; }
     }
 
     public static class ResolveAllRequest {
         private Long workflowId;
-
         public Long getWorkflowId() { return workflowId; }
         public void setWorkflowId(Long workflowId) { this.workflowId = workflowId; }
     }
 
+    @Data
+    public static class EventRequest {
+        private Long workflowId;
+        private String stepName;
+        private LocalDateTime occurredAt;
+    }
 }

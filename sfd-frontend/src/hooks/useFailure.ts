@@ -1,17 +1,26 @@
 import { useEffect, useState } from "react";
-import { getFailuresByWorkflow } from "../api/failureApi";
-import type { Failure } from "../types/failure";
+import api from "../api/axios";
 
-export const useFailures = (workflowId: number) => {
+export type Failure = {
+  id: number;
+  stepName: string;
+  failureType: string;
+  resolved: boolean;
+  delayed: boolean;
+  detectedAt:string;
+};
+
+export const useFailures = (workflowId: number | null) => {
   const [failures, setFailures] = useState<Failure[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if(!workflowId) return;
+    if (!workflowId) return;
 
     setLoading(true);
-    getFailuresByWorkflow(workflowId)
-      .then(setFailures)
+    api
+      .get<Failure[]>(`/dashboard/failures/workflow/${workflowId}`)
+      .then(res => setFailures(res.data))
       .finally(() => setLoading(false));
   }, [workflowId]);
 

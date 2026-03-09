@@ -23,7 +23,7 @@ public class WorkflowStep {
     private int stepOrder;
 
     // Expected time in seconds (baseline)
-    private int expectedTimeSeconds;
+    private Long expectedTimeSeconds;
 
     // Many steps belong to one workflow
     @ManyToOne

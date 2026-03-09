@@ -12,3 +12,8 @@ export const getWorkflowById = async (
   const response = await api.get(`/workflows/${id}`);
   return response.data;
 };
+
+export const getWorkflowsDashboard = async () => {
+  const res = await api.get("/workflows");
+  return res.data;
+}

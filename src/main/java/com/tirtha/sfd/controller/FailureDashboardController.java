@@ -1,25 +1,32 @@
 package com.tirtha.sfd.controller;
 
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.tirtha.sfd.controller.EventController.ResolveRequest;
 import com.tirtha.sfd.model.FailureType;
 import com.tirtha.sfd.model.SilentFailure;
 import com.tirtha.sfd.repository.SilentFailureRepository;
-import com.tirtha.sfd.service.FailureDetectionService;
+import com.tirtha.sfd.service.FailureResolutionService;
 
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/dashboard/failures")
 @RequiredArgsConstructor
+
 public class FailureDashboardController {
 
     private final SilentFailureRepository failureRepository;
-    private final FailureDetectionService failureDetectionService;
-
+    
+    private final FailureResolutionService failureResolutionService;
 
     // All failures
     @GetMapping
@@ -30,7 +37,7 @@ public class FailureDashboardController {
     // Failures by workflow
     @GetMapping("/workflow/{workflowId}")
     public List<SilentFailure> getFailuresByWorkflow(@PathVariable Long workflowId) {
-        return failureRepository.findByWorkflowId(workflowId);
+        return failureRepository.findByWorkflow_Id(workflowId);
     }
 
     // Failures by type
@@ -40,20 +47,30 @@ public class FailureDashboardController {
     }
 
 
-    @PostMapping("/resolve/{workflowId}")
-    public String resolveFailure(@PathVariable Long workflowId) {
-        failureDetectionService.resolveFailure(workflowId);
-        return "Failure resolved for workflow " + workflowId;
-    }
+   @PostMapping("/resolve")
+public ResponseEntity<String> resolveStep(@RequestBody ResolveRequest request) {
+
+    failureResolutionService.resolveFailures(
+            request.getWorkflowId(),
+            request.getStepName()
+    );
+
+    return ResponseEntity.ok(
+        "Failure resolved for workflow " +
+        request.getWorkflowId() +
+        ", step " +
+        request.getStepName()
+    );
+}
 
 
-    @PutMapping("/resolve/delayed")
-    public ResponseEntity<String> resolveDelayedStep(
-            @RequestParam Long workflowId,
-            @RequestParam String stepName
-    ) {
-        failureDetectionService.resolveDelayedStep(workflowId, stepName);
-        return ResponseEntity.ok("DELAYED_STEP resolved successfully");
-    }
+    // @PutMapping("/resolve/delayed")
+    // public ResponseEntity<String> resolveDelayedStep(
+    //         @RequestParam Long workflowId,
+    //         @RequestParam String stepName
+    // ) {
+    //     failureResolutionService.resolveDelayedStep(workflowId, stepName);
+    //     return ResponseEntity.ok("DELAYED_STEP resolved successfully");
+    // }
 }
     
