@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.tirtha.sfd.model.Event;
 import com.tirtha.sfd.model.Workflow;
-import com.tirtha.sfd.repository.EventRepository;
-import com.tirtha.sfd.repository.WorkflowRepository;
 import com.tirtha.sfd.service.EventService;
 import com.tirtha.sfd.service.FailureResolutionService;
 
@@ -28,9 +26,6 @@ public class EventController {
 
     private final EventService eventService;
     private final FailureResolutionService resolutionService;
-    private final EventRepository eventRepository;
-    private final WorkflowRepository workflowRepository;
-
     // ---------------- CREATE EVENTS ----------------
 
     @PostMapping
@@ -40,20 +35,19 @@ public class EventController {
     }
 
     @PostMapping("/batch")
-public ResponseEntity<String> createEvents(@RequestBody List<EventRequest> requests) {
-    for (EventRequest request : requests) {
-        Workflow workflow = workflowRepository.findById(request.getWorkflowId())
-                .orElseThrow(() -> new RuntimeException("Workflow not found"));
+    public ResponseEntity<String> createEvents(@RequestBody List<EventRequest> requests) {
+        for (EventRequest request : requests) {
+            Event event = new Event();
+            Workflow workflow = new Workflow();
+            workflow.setId(request.getWorkflowId());
+            event.setWorkflow(workflow);
+            event.setStepName(request.getStepName());
+            event.setOccurredAt(request.getOccurredAt());
 
-        Event event = new Event();
-        event.setWorkflow(workflow);
-        event.setStepName(request.getStepName());
-        event.setOccurredAt(request.getOccurredAt());
-
-        eventRepository.save(event);
+            eventService.handleEvent(event);
+        }
+        return ResponseEntity.ok("Events created successfully");
     }
-    return ResponseEntity.ok("Events created successfully");
-}
 
 
     // ---------------- READ EVENTS ----------------

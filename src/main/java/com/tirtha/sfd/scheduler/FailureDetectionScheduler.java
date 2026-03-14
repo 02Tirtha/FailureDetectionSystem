@@ -44,7 +44,7 @@ public class FailureDetectionScheduler {
             }
 
             try {
-              failureDetectionService.detectWorkflowFailures(workflowId);
+              failureDetectionService.detectFailures(workflowId);
 
             } catch (Exception e) {
                 e.printStackTrace();

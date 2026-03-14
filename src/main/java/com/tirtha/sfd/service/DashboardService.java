@@ -19,7 +19,7 @@ public class DashboardService {
         return new DashboardStatsDto(
                 workflowRepository.count(),
                 silentFailureRepository.count(),
-                silentFailureRepository.countByResolvedFalse(),
+                silentFailureRepository.count(),
                 silentFailureRepository.countBySeverity(Severity.HIGH),
                 silentFailureRepository.countByFailureType(FailureType.MISSING_STEP),
                 silentFailureRepository.countByFailureType(FailureType.DELAYED_STEP),

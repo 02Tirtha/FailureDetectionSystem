@@ -1,6 +1,5 @@
 package com.tirtha.sfd.service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -17,7 +16,7 @@ public class FailureResolutionService {
     private final SilentFailureRepository failureRepo;
 
     /**
-     * Resolves all unresolved failures for a given workflow and step/event.
+     * Deletes failures for a given workflow and step/event.
      *
      * @param workflowId the workflow ID
      * @param stepName the step name or ML anomaly type
@@ -25,27 +24,17 @@ public class FailureResolutionService {
   public void resolveFailures(Long workflowId, String stepName) {
 
     List<SilentFailure> failures =
-        failureRepo.findByWorkflow_IdAndStepNameAndResolvedFalse(workflowId, stepName);
+        failureRepo.findByWorkflow_IdAndStepName(workflowId, stepName);
 
-    failures.forEach(f -> {
-        f.setResolved(true);
-        f.setResolvedAt(LocalDateTime.now());
-    });
-
-    failureRepo.saveAll(failures);
+    failureRepo.deleteAll(failures);
 }
 
 public void resolveAllFailures(Long workflowId) {
 
         List<SilentFailure> failures =
-            failureRepo.findByWorkflow_IdAndResolvedFalse(workflowId);
+            failureRepo.findByWorkflow_Id(workflowId);
 
-        failures.forEach(f -> {
-            f.setResolved(true);
-            f.setResolvedAt(LocalDateTime.now());
-        });
-
-        failureRepo.saveAll(failures);
+        failureRepo.deleteAll(failures);
     }
 
 

@@ -6,87 +6,111 @@ interface Workflow {
   name: string;
 }
 
+interface WorkflowStep {
+  id: number;
+  stepName: string;
+}
+
 const EventsTesterPage = () => {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [workflowId, setWorkflowId] = useState<number | "">("");
+  const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [stepName, setStepName] = useState("");
-  const [occurredAt, setOccurredAt] = useState(
-    new Date().toISOString().slice(0, 16)
-  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/workflows")
+    fetch("http://localhost:8080/api/workflows/all")
       .then((res) => res.json())
-      .then(setWorkflows);
+      .then((data: Workflow[]) => {
+        const filtered = data.filter(
+          (w) => w.name === "Order Flow" || w.name === "User Registration"
+        );
+        setWorkflows(filtered.length > 0 ? filtered : data);
+      });
   }, []);
+
+  useEffect(() => {
+    if (!workflowId) {
+      setSteps([]);
+      setStepName("");
+      return;
+    }
+
+    fetch(`http://localhost:8080/api/workflow-steps?workflowId=${workflowId}`)
+      .then((res) => res.json())
+      .then((data: WorkflowStep[]) => {
+        setSteps(data);
+        setStepName(data[0]?.stepName ?? "");
+      });
+  }, [workflowId]);
 
   const handleSubmit = async () => {
     if (!workflowId || !stepName) return;
 
     setLoading(true);
-    await triggerStep(stepName, Number(workflowId), occurredAt);
+    await triggerStep(stepName, Number(workflowId));
     setLoading(false);
 
     alert("Event submitted successfully!");
-    setStepName("");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-2">Events Tester</h2>
-        <p className="text-sm text-gray-500 mb-6">
-          Manually trigger workflow events for testing & demo
+    <div className="page">
+      <div className="panel" style={{ maxWidth: 520, margin: "0 auto" }}>
+        <h2 className="page-title">Events Lab</h2>
+        <p className="page-subtitle">
+          Manually trigger workflow events for testing and demos.
         </p>
 
-        {/* Workflow */}
-        <label className="text-sm font-medium mb-1 block">
-          Select Workflow
-        </label>
-        <select
-          value={workflowId}
-          onChange={(e) => setWorkflowId(Number(e.target.value))}
-          className="w-full border px-3 py-2 rounded mb-4"
-        >
-          <option value="">-- Select Workflow --</option>
-          {workflows.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
+        <div className="form-grid">
+          <div>
+            <label>Select Workflow</label>
+            <select
+              value={workflowId}
+              onChange={(e) => setWorkflowId(Number(e.target.value))}
+              className="select"
+            >
+              <option value="">-- Select Workflow --</option>
+              {workflows.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Step */}
-        <label className="text-sm font-medium mb-1 block">
-          Step Name
-        </label>
-        <input
-          value={stepName}
-          onChange={(e) => setStepName(e.target.value)}
-          placeholder="e.g. PAYMENT_DONE"
-          className="w-full border px-3 py-2 rounded mb-4"
-        />
+          <div>
+            <label>Step Name</label>
+            <select
+              value={stepName}
+              onChange={(e) => setStepName(e.target.value)}
+              className="select"
+              disabled={steps.length === 0}
+            >
+              {steps.length === 0 && (
+                <option value="">-- Select Workflow First --</option>
+              )}
+              {steps.map((step) => (
+                <option key={step.id} value={step.stepName}>
+                  {step.stepName}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Timestamp */}
-        <label className="text-sm font-medium mb-1 block">
-          Event Time
-        </label>
-        <input
-          type="datetime-local"
-          value={occurredAt}
-          onChange={(e) => setOccurredAt(e.target.value)}
-          className="w-full border px-3 py-2 rounded mb-6"
-        />
+          <div>
+            <label>Event Time</label>
+            <div className="helper">Uses current time when you submit.</div>
+          </div>
 
-        {/* Action */}
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Submitting..." : "Submit Event"}
-        </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !workflowId || !stepName}
+            className="btn btn-primary"
+          >
+            {loading ? "Submitting..." : "Submit Event"}
+          </button>
+        </div>
       </div>
     </div>
   );

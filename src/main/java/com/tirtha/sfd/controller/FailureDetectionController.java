@@ -14,7 +14,7 @@ public class FailureDetectionController {
     @PostMapping("/detect/{workflowId}")
     public String detectFailures(@PathVariable Long workflowId) {
 
-       failureDetectionService.detectWorkflowFailures(workflowId);
+       failureDetectionService.detectFailures(workflowId);
 
         return "Failure detection completed for workflow ID: " + workflowId;
     }

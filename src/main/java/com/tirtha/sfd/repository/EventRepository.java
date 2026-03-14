@@ -13,6 +13,8 @@ import com.tirtha.sfd.model.Workflow;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
+    List<Event> findByWorkflowId(Long workflowId);
+
     // Get all events for a workflow ordered by time
     List<Event> findByWorkflowIdOrderByOccurredAt(Long workflowId);
 
@@ -44,6 +46,47 @@ boolean stepOccurred(
     Optional<Event> findTopByWorkflowAndStepNameOrderByOccurredAtDesc(Workflow workflow, String stepName);
 
     boolean existsByWorkflow_IdAndStepName(Long id, String stepName);
+
+    Event findTopByWorkflowAndOccurredAtBeforeOrderByOccurredAtDesc(
+            Workflow workflow, LocalDateTime occurredAt
+    );
+
+    @Query("""
+    select count(e) > 0
+    from Event e
+    where e.workflow = :workflow
+      and e.stepName = :stepName
+      and e.occurredAt >= :startTime
+      and e.occurredAt <= :endTime
+""")
+    boolean existsByWorkflowAndStepNameAndOccurredAtBetween(
+            @Param("workflow") Workflow workflow,
+            @Param("stepName") String stepName,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    Event findTopByWorkflowAndOccurredAtBetweenOrderByOccurredAtDesc(
+            Workflow workflow, LocalDateTime startTime, LocalDateTime endTime
+    );
+
+    Event findTopByWorkflowAndStepNameAndIdLessThanEqualOrderByIdDesc(
+            Workflow workflow, String stepName, Long id
+    );
+
+    Event findTopByWorkflowAndStepNameAndIdLessThanOrderByIdDesc(
+            Workflow workflow, String stepName, Long id
+    );
+
+    Event findTopByWorkflowAndIdLessThanOrderByIdDesc(
+            Workflow workflow, Long id
+    );
+
+    boolean existsByWorkflowAndStepNameAndIdBetween(
+            Workflow workflow, String stepName, Long startId, Long endId
+    );
+
+    Event findTopByWorkflowIdOrderByOccurredAtDesc(Long workflowId);
 
  @Query("select e.stepName from Event e where e.workflow = :workflow")
     List<String> findStepNamesByWorkflow(@Param("workflow") Workflow workflow);

@@ -1,14 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
-
-export type Failure = {
-  id: number;
-  stepName: string;
-  failureType: string;
-  resolved: boolean;
-  delayed: boolean;
-  detectedAt:string;
-};
+import type { Failure } from "../types/failure";
 
 export const useFailures = (workflowId: number | null) => {
   const [failures, setFailures] = useState<Failure[]>([]);

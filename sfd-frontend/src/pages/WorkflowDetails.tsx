@@ -12,17 +12,21 @@ const WorkflowDetails = () => {
   const [selectedFailure, setSelectedFailure] = useState<any>(null);
 
   if (loading || workflowId === null)
-    return <p className="p-4">Loading...</p>;
+    return <p className="page">Loading...</p>;
 
   return (
-    <div className="p-6">
-      <h2 className="text-xl font-semibold mb-4">Workflow Failures</h2>
+    <div className="page">
+      <h2 className="page-title">Workflow Failures</h2>
+      <p className="page-subtitle">
+        Active failures only. Resolve to remove them from the list.
+      </p>
 
-      <table className="w-full border border-gray-200 rounded-lg">
-        <thead className="bg-gray-100">
+      <table className="table">
+        <thead>
           <tr>
             <th>Step</th>
             <th>Failure Type</th>
+            <th>Message</th>
             <th>Status</th>
             <th>Detected At</th>
             <th>Actions</th>
@@ -30,31 +34,26 @@ const WorkflowDetails = () => {
         </thead>
 
         <tbody>
-          {failures.map(f => (
-            <tr key={f.id} className="border-t">
+          {failures.map((f) => (
+            <tr key={f.id}>
               <td>{f.stepName}</td>
               <td>{f.failureType}</td>
-              <td>{f.resolved ? "🟢 Healthy" : "🔴 Issues"}</td>
+              <td>{f.message}</td>
               <td>
-                {f.detectedAt
-                  ? new Date(f.detectedAt).toLocaleString()
-                  : "-"}
+                <span className="badge badge-danger">Open</span>
               </td>
-               <td>
-                {f.resolved ? (
-                  <span className="text-gray-500 text-xl font-semibold mb-2 text-center">
-                        ✅ No Action Required
-                      </span>
-                ) : (
-                  <button
-                    onClick={() =>
-                      navigate(`/workflows/${workflowId}/recovery/${f.stepName}`)
-                    }
-                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded"
-                  >
-                    🔁 Run Recovery Action
-                  </button>
-                )}
+              <td>
+                {f.detectedAt ? new Date(f.detectedAt).toLocaleString() : "-"}
+              </td>
+              <td>
+                <button
+                  onClick={() =>
+                    navigate(`/workflows/${workflowId}/recovery/${f.stepName}`)
+                  }
+                  className="btn btn-primary"
+                >
+                  Run Recovery
+                </button>
               </td>
             </tr>
           ))}

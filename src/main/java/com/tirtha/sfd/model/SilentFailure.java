@@ -38,12 +38,6 @@ public class SilentFailure {
     private Severity severity;
 
 
-    @Column(name = "resolved")
-    private boolean resolved = false;
-
-    @Column(name = "resolved_at")
-    private LocalDateTime resolvedAt;
-
     // Workflow reference
     @ManyToOne
     @JoinColumn(name = "workflow_id", nullable = false)

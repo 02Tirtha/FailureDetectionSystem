@@ -47,8 +47,7 @@ public List<WorkflowDashboardDTO> getworkflowDashboard() {
 
         long totalFailures = failures.size();
 
-        long unresolvedFailures =
-            failures.stream().filter(f -> !f.isResolved()).count();
+        long unresolvedFailures = totalFailures;
 
         LocalDateTime lastFailureTime =
             failures.stream()

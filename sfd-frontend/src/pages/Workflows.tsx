@@ -4,65 +4,57 @@ import { Link } from "react-router-dom";
 const Workflows = () => {
   const { data: workflows, loading } = useWorkflowsDashboard();
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <p className="page">Loading...</p>;
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold mb-4">Workflows Dashboard</h2>
+    <div className="page">
+      <h2 className="page-title">Workflows Dashboard</h2>
+      <p className="page-subtitle">
+        Track health, failures, and last incident time by workflow.
+      </p>
 
-      <table className="w-full border border-gray-200 rounded-lg">
-        <thead className="bg-gray-100">
+      <table className="table">
+        <thead>
           <tr>
-            <th className="px-4 py-3 text-left">Workflow</th>
-            <th className="px-4 py-3 text-center">Total Failures</th>
-            <th className="px-4 py-3 text-center">Unresolved</th>
-            <th className="px-4 py-3 text-left">Last Failure</th>
-            <th className="px-4 py-3 text-center">Status</th>
-            <th className="px-4 py-3 text-center">Action</th>
+            <th>Workflow</th>
+            <th>Total Failures</th>
+            <th>Unresolved</th>
+            <th>Last Failure</th>
+            <th>Status</th>
+            <th>Action</th>
           </tr>
         </thead>
 
         <tbody>
-          {workflows.map(w => {
+          {workflows.map((w) => {
             const healthy = w.unresolvedFailures === 0;
 
             return (
-              <tr key={w.workflowId} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">
-                  {w.workflowName}
-                </td>
+              <tr key={w.workflowId}>
+                <td className="font-medium">{w.workflowName}</td>
 
-                <td className="px-4 py-3 text-center">
-                  {w.totalFailures}
-                </td>
+                <td className="text-center">{w.totalFailures}</td>
 
-                <td className="px-4 py-3 text-center">
-                  {w.unresolvedFailures}
-                </td>
+                <td className="text-center">{w.unresolvedFailures}</td>
 
-                <td className="px-4 py-3">
+                <td>
                   {w.lastFailureTime
                     ? new Date(w.lastFailureTime).toLocaleString()
-                    : "—"}
+                    : "�"}
                 </td>
 
-                <td className="px-4 py-3 text-center">
+                <td className="text-center">
                   <span
-                    className={`px-2 py-1 rounded text-xs font-semibold ${
-                      healthy
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
+                    className={`badge ${
+                      healthy ? "badge-success" : "badge-danger"
                     }`}
                   >
-                    {healthy ? "🟢 Healthy" : "🔴 Issues"}
+                    {healthy ? "Healthy" : "Needs Attention"}
                   </span>
                 </td>
 
-                <td className="px-4 py-3 text-center">
-                  <Link
-                    to={`/workflows/${w.workflowId}`}
-                    className="text-blue-600 hover:underline"
-                  >
+                <td className="text-center">
+                  <Link to={`/workflows/${w.workflowId}`} className="btn btn-ghost">
                     View details
                   </Link>
                 </td>
