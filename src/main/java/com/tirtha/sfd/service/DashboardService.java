@@ -22,8 +22,7 @@ public class DashboardService {
                 silentFailureRepository.count(),
                 silentFailureRepository.countBySeverity(Severity.HIGH),
                 silentFailureRepository.countByFailureType(FailureType.MISSING_STEP),
-                silentFailureRepository.countByFailureType(FailureType.DELAYED_STEP),
-                silentFailureRepository.countByFailureType(FailureType.ML_ANOMALY)
+                silentFailureRepository.countByFailureType(FailureType.DELAYED_STEP)
             );
     }
 }

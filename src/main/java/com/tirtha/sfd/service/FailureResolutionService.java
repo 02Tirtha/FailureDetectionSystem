@@ -19,7 +19,7 @@ public class FailureResolutionService {
      * Deletes failures for a given workflow and step/event.
      *
      * @param workflowId the workflow ID
-     * @param stepName the step name or ML anomaly type
+     * @param stepName the step name
      */
   public void resolveFailures(Long workflowId, String stepName) {
 

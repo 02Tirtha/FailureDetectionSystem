@@ -5,7 +5,6 @@ export interface DashboardStats{
     highSeverityFailures: number;
     missingCount: number;
     delayedCount: number;
-    mlAnomalycount: number;
 }
 
 export interface FailureCount{

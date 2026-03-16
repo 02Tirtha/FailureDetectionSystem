@@ -21,7 +21,7 @@ function App() {
     <BrowserRouter>
       <header className="topbar">
         <div className="topbar-inner">
-          <div className="brand">Silent Failure Detector</div>
+          <div className="brand">Failure Detector</div>
           <nav className="nav">
             <NavLink to="/" className="nav-link">
               Dashboard

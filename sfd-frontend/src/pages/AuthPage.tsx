@@ -8,11 +8,39 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault(); //Prevent page reload
-    localStorage.setItem("sfd_admin", "1"); //This saves data in browser storage
+ const handleSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
+
+  const url =
+    mode === "login"
+      ? "http://localhost:8080/api/auth/login"
+      : "http://localhost:8080/api/auth/register";
+
+  const body =
+    mode === "login"
+      ? { email, password }
+      : { name, email, password };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.text();
+
+  if (data === "Login Successful") {
+    localStorage.setItem("sfd_admin", "1");
     navigate("/workflows");
-  };
+  } else if (data === "User Registered Successfully") {
+    alert("Account created. Please login.");
+    setMode("login");
+  } else {
+    alert(data);
+  }
+};
 
   return (
     <div className="page">

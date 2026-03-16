@@ -27,7 +27,6 @@ public class FailureDetectionService {
     private final EventRepository eventRepository;
     private final SilentFailureRepository silentFailureRepository;
     private final SilentFailureMailService mailService;
-    private final MlAnomalyDetectionService mlAnomalyDetectionService;
     private final WorkflowStepRepository workflowStepRepository;
 
     @Transactional
@@ -144,37 +143,7 @@ public class FailureDetectionService {
             }
         }
 
-        /* 🟣 ML ANOMALY DETECTION */
-        if ("EMAIL_SENT".equalsIgnoreCase(currentStep)) {
-            WorkflowStep prevStep = steps.stream()
-                    .filter(s -> s.getStepOrder() == currentOrder - 1)
-                    .findFirst()
-                    .orElse(null);
 
-            if (prevStep != null) {
-                Optional<Event> prevEventOpt =
-                        eventRepository.findTopByWorkflowAndStepNameOrderByOccurredAtDesc(
-                                workflow,
-                                prevStep.getStepName().trim()
-                        );
-
-                if (prevEventOpt.isPresent()) {
-                    Event prevEvent = prevEventOpt.get();
-
-                    long duration = Duration.between(prevEvent.getOccurredAt(), currentTime).getSeconds();
-
-                    if (mlAnomalyDetectionService.isAnomalous(workflow.getId(), currentStep, duration)) {
-                        createOrUpdateFailure(
-                                workflow,
-                                currentStep,
-                                FailureType.ML_ANOMALY,
-                                Severity.HIGH,
-                                "ML detected abnormal delay"
-                        );
-                    }
-                }
-            }
-        }
     }
 
     private void createOrUpdateFailure(

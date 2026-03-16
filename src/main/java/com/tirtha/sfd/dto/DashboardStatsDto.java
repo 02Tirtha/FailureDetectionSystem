@@ -12,5 +12,4 @@ public class DashboardStatsDto {
     private long highSeverityFailures;
     private long missingCount;
     private long delayedCount;
-    private long mlAnomalyCount;
 }

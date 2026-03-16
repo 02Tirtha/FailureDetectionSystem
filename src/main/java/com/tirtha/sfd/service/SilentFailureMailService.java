@@ -15,7 +15,7 @@ public class SilentFailureMailService {
     public void sendAlert(SilentFailure failure) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo("recipient@example.com"); // change to your recipient
+            message.setTo("tjhaveri99@example.com"); // change to your recipient
             message.setSubject("Silent Failure Alert: " + failure.getStepName());
             message.setText(
                 "Workflow ID: " + failure.getWorkflow().getId() + "\n" +
