@@ -31,6 +31,17 @@
   text-transform: uppercase;
 }
 
+.brand-with-back {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.back-arrow {
+  margin-left: -8px;
+  padding: 6px 8px;
+}
+
 .nav {
   display: flex;
   gap: 16px;

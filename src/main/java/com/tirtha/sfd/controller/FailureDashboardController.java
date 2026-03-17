@@ -8,12 +8,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tirtha.sfd.controller.EventController.ResolveRequest;
 import com.tirtha.sfd.model.FailureType;
+import com.tirtha.sfd.model.Role;
 import com.tirtha.sfd.model.SilentFailure;
 import com.tirtha.sfd.repository.SilentFailureRepository;
+import com.tirtha.sfd.service.AuthorizationService;
 import com.tirtha.sfd.service.FailureResolutionService;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ public class FailureDashboardController {
     private final SilentFailureRepository failureRepository;
     
     private final FailureResolutionService failureResolutionService;
+    private final AuthorizationService authorizationService;
 
     // All failures
     @GetMapping
@@ -48,7 +52,11 @@ public class FailureDashboardController {
 
 
    @PostMapping("/resolve")
-public ResponseEntity<String> resolveStep(@RequestBody ResolveRequest request) {
+public ResponseEntity<String> resolveStep(
+        @RequestHeader(value = "X-User-Email", required = false) String userEmail,
+        @RequestBody ResolveRequest request
+) {
+    authorizationService.requireRole(userEmail, Role.ADMIN);
 
     failureResolutionService.resolveFailures(
             request.getWorkflowId(),
