@@ -36,4 +36,4 @@ Silent Failure Detection System: Full stack application that detects missing or 
 ---
 
 ## 👤 Author
-[Your Name]
+Jhaveri Tirtha
