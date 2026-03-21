@@ -101,9 +101,25 @@ const AuthPage = () => {
       const data = isJson ? await res.json() : await res.text();
 
       if (!res.ok) {
-        setErrors({
-          form: getErrorMessage(data),
-        });
+        const errorMessage = getErrorMessage(data);
+        const nextErrors: {
+          name?: string;
+          email?: string;
+          password?: string;
+          form?: string;
+        } = {};
+
+        if (
+          mode === "signup" &&
+          (errorMessage.toLowerCase().includes("user already exists") ||
+            errorMessage.toLowerCase().includes("email already exists"))
+        ) {
+          nextErrors.email = "Email already exists.";
+        } else {
+          nextErrors.form = errorMessage;
+        }
+
+        setErrors(nextErrors);
         return;
       }
       // ✅ LOGIN SUCCESS
@@ -278,6 +294,5 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
-
 
 

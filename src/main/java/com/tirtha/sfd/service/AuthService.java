@@ -46,7 +46,16 @@ public class AuthService {
 
     public Optional<AuthResponse> login(LoginRequest request) {
 
-        Optional<User> user = userRepository.findByEmail(request.getEmail());
+        String normalizedEmail = request.getEmail() == null ? null : request.getEmail().trim().toLowerCase();
+        if (normalizedEmail == null) {
+            return Optional.empty();
+        }
+
+        var users = userRepository.findAllByEmailIgnoreCase(normalizedEmail);
+        if (users.size() > 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Multiple users found for this email");
+        }
+        Optional<User> user = users.stream().findFirst();
 
         if (user.isPresent() &&
                 passwordEncoder.matches(request.getPassword(), user.get().getPassword())) {
