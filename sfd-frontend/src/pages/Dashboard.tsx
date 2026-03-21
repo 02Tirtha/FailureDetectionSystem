@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getDashboardStats } from "../api/dashboard";
 import type { DashboardStats } from "../types/dashboard";
+import.meta.env.VITE_API_URL;
 
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-    getDashboardStats().then(setStats).catch(console.error);
-  }, []); //Run this code when the component loads for the first time.
+  fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/stats`)
+      .then(res => res.json())
+      .then(data => {
+        console.log(data);
+        setStats(data);
+      })
+      .catch(err => console.error(err));
+  }, []);
 
   if (!stats) return <p className="page">Loading dashboard...</p>;
 

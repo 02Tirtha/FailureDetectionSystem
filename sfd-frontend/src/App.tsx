@@ -1,10 +1,10 @@
-import { BrowserRouter, NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import Dashboard from "./pages/Dashboard";
 import WorkflowDetails from "./pages/WorkflowDetails";
 import Workflows from "./pages/Workflows";
 import RecoveryPage from "./pages/RecoveryPage";
 import EventsTesterPage from "./pages/EventsTesterPage";
-import AuthPage from "./pages/AuthPage";
 import "./App.css";
 import AuthWrapper from "./components/AuthWrraper";
 
@@ -22,17 +22,29 @@ const AccessPrompt = ({
   loginLabel?: string;
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+
   return (
     <div className="page">
       <div className="modal-backdrop">
         <div className="panel modal-card">
           <h3 style={{ margin: "0 0 8px" }}>{title}</h3>
           <p style={{ margin: "0 0 20px", color: "#555" }}>{message}</p>
+
           <div className="hero-actions" style={{ justifyContent: "flex-end" }}>
-            <button className="btn btn-ghost" onClick={() => navigate("/") }>
+            <button className="btn btn-ghost" onClick={() => navigate("/")}>
               Back to Dashboard
             </button>
-            <button className="btn btn-primary" onClick={() => navigate("/auth", { state: { from: window.location.pathname } })}>
+
+            {/* ✅ IMPORTANT: pass "from" */}
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                navigate("/auth", {
+                  state: { from: `${location.pathname}${location.search}`, forceLogin: true },
+                })
+              }
+            >
               {loginLabel}
             </button>
           </div>
@@ -54,27 +66,31 @@ const TopBar = () => {
             type="button"
             className="btn btn-ghost back-arrow"
             onClick={() => navigate(-1)}
-            aria-label="Go back"
           >
             ←
           </button>
           <span>Failure Detector</span>
         </div>
+
         <nav className="nav">
           <NavLink to="/" className="nav-link">
             Dashboard
           </NavLink>
+
           <NavLink to="/workflows" className="nav-link">
             Workflows
           </NavLink>
+
           <NavLink to="/events" className="nav-link">
             Events Lab
           </NavLink>
+
           {!authed && (
             <NavLink to="/auth" className="nav-link">
               Login
             </NavLink>
           )}
+
           {authed && (
             <button
               type="button"
@@ -82,7 +98,10 @@ const TopBar = () => {
               onClick={() => {
                 localStorage.removeItem("userEmail");
                 localStorage.removeItem("userRole");
-                window.location.href = "/";
+                window.dispatchEvent(new Event("auth:changed"));
+
+                // ✅ FIXED (no reload)
+                navigate("/");
               }}
             >
               Log out
@@ -95,6 +114,18 @@ const TopBar = () => {
 };
 
 function App() {
+  const [, setAuthTick] = useState(0);
+
+  useEffect(() => {
+    const handleAuthChange = () => setAuthTick((tick) => tick + 1);
+    window.addEventListener("auth:changed", handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("auth:changed", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
+  }, []);
   return (
     <BrowserRouter>
       <TopBar />
@@ -102,7 +133,10 @@ function App() {
       <main className="app-shell">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+
           <Route path="/auth" element={<AuthWrapper />} />
+
+          {/* ADMIN ONLY */}
           <Route
             path="/workflows"
             element={
@@ -123,6 +157,8 @@ function App() {
               )
             }
           />
+
+          {/* USER + ADMIN */}
           <Route
             path="/workflows/:id"
             element={
@@ -136,6 +172,7 @@ function App() {
               )
             }
           />
+
           <Route
             path="/workflows/:workflowId/recovery/:stepName"
             element={
@@ -149,7 +186,9 @@ function App() {
               )
             }
           />
-                    <Route
+
+          {/* USER ONLY */}
+          <Route
             path="/events"
             element={
               isLoggedIn() ? (
@@ -176,3 +215,10 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+

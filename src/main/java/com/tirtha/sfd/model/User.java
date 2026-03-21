@@ -6,6 +6,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Column;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,6 +19,7 @@ public class User {
     private Long id;
 
     private String name;
+    @Column(unique = true, nullable = false)
     private String email;
     private String password;
 

@@ -5,6 +5,8 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import com.tirtha.sfd.dto.AuthResponse;
 import com.tirtha.sfd.dto.LoginRequest;
@@ -22,6 +24,10 @@ public class AuthService {
     private PasswordEncoder passwordEncoder;
 
     public String register(RegisterRequest request) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists");
+        }
+
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail());

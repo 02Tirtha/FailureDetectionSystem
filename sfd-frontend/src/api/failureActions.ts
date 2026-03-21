@@ -1,6 +1,6 @@
 export const resolveFailure = async (stepName: string, workflowId: number) => {
   const userEmail = localStorage.getItem("userEmail") || "";
-  await fetch("http://localhost:8080/api/events/resolve", {
+   const res = await fetch(`${import.meta.env.VITE_API_URL}/api/events/resolve`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -8,6 +8,11 @@ export const resolveFailure = async (stepName: string, workflowId: number) => {
     },
     body: JSON.stringify({ workflowId, stepName })
   });
+   if (!res.ok) {
+    throw new Error("Failed to resolve failure");
+  }
+
+  return res.json();
 };
 
 export const triggerStep = async (
@@ -16,7 +21,7 @@ export const triggerStep = async (
   occurredAt?: string
 ) => {
   const userEmail = localStorage.getItem("userEmail") || "";
-  await fetch("http://localhost:8080/api/events", {
+  const res =await fetch(`${import.meta.env.VITE_API_URL}/api/events`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -28,4 +33,10 @@ export const triggerStep = async (
       workflow: { id: workflowId }
     })
   });
+
+   if (!res.ok) {
+    throw new Error("Failed to trigger step");
+  }
+
+  return res.json();
 };

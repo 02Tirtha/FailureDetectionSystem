@@ -4,99 +4,144 @@ import { useNavigate, useLocation } from "react-router-dom";
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<"ADMIN" | "USER">("USER");
+
   const from = location.state?.from;
+
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
     password?: string;
     form?: string;
   }>({});
+
+
   const [showSignupSuccess, setShowSignupSuccess] = useState(false);
+
+  const getErrorMessage = (data: unknown) => {
+    if (typeof data === "string" && data.trim()) {
+      return data;
+    }
+
+    if (data && typeof data === "object") {
+      const maybeMessage = (data as { message?: unknown }).message;
+      if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+        return maybeMessage;
+      }
+
+      const maybeError = (data as { error?: unknown }).error;
+      if (typeof maybeError === "string" && maybeError.trim()) {
+        return maybeError;
+      }
+
+      const maybeErrors = (data as { errors?: unknown }).errors;
+      if (Array.isArray(maybeErrors) && maybeErrors.length > 0) {
+        const messages = maybeErrors
+          .map((entry) => {
+            if (typeof entry === "string") return entry;
+            if (entry && typeof entry === "object") {
+              const fieldMessage =
+                (entry as { defaultMessage?: unknown; message?: unknown }).defaultMessage ??
+                (entry as { message?: unknown }).message;
+              if (typeof fieldMessage === "string") return fieldMessage;
+            }
+            return "";
+          })
+          .filter((message) => message);
+
+        if (messages.length > 0) {
+          return messages.join(", ");
+        }
+      }
+
+      if (maybeErrors && typeof maybeErrors === "object" && !Array.isArray(maybeErrors)) {
+        const messages = Object.values(maybeErrors)
+          .map((entry) => (typeof entry === "string" ? entry : ""))
+          .filter((message) => message);
+
+        if (messages.length > 0) {
+          return messages.join(", ");
+        }
+      }
+    }
+
+    return "Request failed. Please try again.";
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setErrors({});
 
-    const url =
-      mode === "login"
-        ? "http://localhost:8080/api/auth/login"
-        : "http://localhost:8080/api/auth/register";
+    try {
+      const url =
+        mode === "login"
+          ? `${import.meta.env.VITE_API_URL}/api/auth/login`
+          : `${import.meta.env.VITE_API_URL}/api/auth/register`;
 
-    const body =
-      mode === "login"
-        ? { email, password }
-        : { name, email, password, role };
+      const body =
+        mode === "login"
+          ? { email, password }
+          : { name, email, password, role };
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
 
-    const contentType = response.headers.get("content-type") || "";
-    const isJson = contentType.includes("application/json");
+      const contentType = res.headers.get("content-type") || "";
+      const isJson = contentType.includes("application/json");
+      const data = isJson ? await res.json() : await res.text();
 
-    if (!response.ok) {
-      if (isJson) {
-        const data = await response.json();
-        if (data?.errors) {
-          setErrors(data.errors);
-          return;
-        }
-        if (data?.message) {
-          setErrors({ form: data.message });
-          return;
-        }
-      }
-
-      const fallback = await response.text();
-      setErrors({ form: fallback || "Something went wrong. Please try again." });
-      return;
-    }
-
-    if (isJson) {
-      const data = await response.json();
-      if (data?.message === "Login Successful") {
-        const resolvedRole =
-          typeof data?.role === "string" && data.role.length > 0
-            ? data.role
-            : "USER";
-        localStorage.setItem("userEmail", data.email || email);
-        localStorage.setItem("userRole", resolvedRole);
-        if (resolvedRole === "ADMIN") {
-          window.location.href = from === "/events" ? "/workflows" : (from || "/workflows");
-        } else {
-          window.location.href = from === "/workflows" ? "/events" : (from || "/events");
-        }
-
+      if (!res.ok) {
+        setErrors({
+          form: getErrorMessage(data),
+        });
         return;
       }
-      if (data?.message) {
-        setErrors({ form: data.message });
-        return;
+      // ✅ LOGIN SUCCESS
+      if (mode === "login") {
+        if (!data || typeof data !== "object") {
+          setErrors({ form: "Unexpected login response. Please try again." });
+          return;
+        }
+
+        const userRole = (data as { role?: string }).role || "USER";
+        const responseEmail = (data as { email?: string }).email || email;
+
+        localStorage.setItem("userEmail", responseEmail);
+        localStorage.setItem("userRole", userRole);
+
+        const isWorkflowsRoot =
+          typeof from === "string" && (from === "/workflows" || from.startsWith("/workflows?"));
+        const isEventsRoute = typeof from === "string" && from.startsWith("/events");
+        const canUseFrom =
+          (!isWorkflowsRoot || userRole === "ADMIN") &&
+          (!isEventsRoute || userRole !== "ADMIN");
+
+        const redirectPath =
+          (canUseFrom ? from : null) || (userRole === "ADMIN" ? "/workflows" : "/events");
+
+        navigate(redirectPath, { replace: true });
+        window.dispatchEvent(new Event("auth:changed"));
       }
-      setErrors({ form: "Unexpected response from server." });
-      return;
-    }
 
-    const text = await response.text();
-
-    if (text === "User Registered Successfully") {
-      setShowSignupSuccess(true);
-      setMode("login");
-    } else if (text === "Login Successful") {
-      localStorage.setItem("userEmail", email);
-      localStorage.setItem("userRole", "USER");
-      window.location.href = from || "/events";
-    } else {
-      setErrors({ form: text });
+      // ✅ SIGNUP SUCCESS
+      if (mode === "signup") {
+        setShowSignupSuccess(true);
+        setMode("login");
+      }
+    } catch (err) {
+      console.error(err);
+      
+      setErrors({ form: "Server error. Try again later." });
     }
   };
 
@@ -105,7 +150,9 @@ const AuthPage = () => {
       <div className="panel" style={{ maxWidth: 520, margin: "0 auto" }}>
         <div className="hero">
           <div>
-            <h2 className="page-title">Sign in to Continue</h2>
+            <h2 className="page-title">
+              {mode === "login" ? "Login" : "Create Account"}
+            </h2>
             <p className="page-subtitle">
               Users can submit events. Admins can resolve failures.
             </p>
@@ -140,11 +187,6 @@ const AuthPage = () => {
                 className="input"
                 required
               />
-              {errors.name && (
-                <div style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>
-                  {errors.name}
-                </div>
-              )}
             </div>
           )}
 
@@ -172,11 +214,6 @@ const AuthPage = () => {
               className="input"
               required
             />
-            {errors.email && (
-              <div style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>
-                {errors.email}
-              </div>
-            )}
           </div>
 
           <div>
@@ -189,16 +226,6 @@ const AuthPage = () => {
               className="input"
               required
             />
-            {mode === "signup" && (
-              <div className="helper">
-                8-10 chars, one uppercase, one number, one special character.
-              </div>
-            )}
-            {errors.password && (
-              <div style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>
-                {errors.password}
-              </div>
-            )}
           </div>
 
           {errors.form && (
@@ -223,7 +250,6 @@ const AuthPage = () => {
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1000,
-            padding: 16,
           }}
           onClick={() => setShowSignupSuccess(false)}
         >
@@ -231,36 +257,13 @@ const AuthPage = () => {
             style={{
               background: "#fff",
               borderRadius: 12,
-              maxWidth: 420,
-              width: "100%",
               padding: 24,
-              boxShadow:
-                "0 20px 60px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15)",
               textAlign: "center",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                margin: "0 auto 12px",
-                borderRadius: "50%",
-                border: "3px solid #2e7d32",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#2e7d32",
-                fontSize: 28,
-                fontWeight: 700,
-              }}
-            >
-              OK
-            </div>
-            <h3 style={{ margin: "0 0 8px" }}>Account Created</h3>
-            <p style={{ margin: "0 0 20px", color: "#555" }}>
-              Your account is ready. Please log in.
-            </p>
+            <h3>Account Created</h3>
+            <p>Please login now.</p>
             <button
               className="btn btn-primary"
               onClick={() => setShowSignupSuccess(false)}
@@ -275,3 +278,6 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
+
+
+

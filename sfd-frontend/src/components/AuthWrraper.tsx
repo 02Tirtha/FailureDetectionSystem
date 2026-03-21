@@ -5,8 +5,9 @@ const isLoggedIn = () => Boolean(localStorage.getItem("userEmail"));
 const isAdmin = () => getUserRole() === "ADMIN";
 const AuthWrapper = () => {
   const location = useLocation();
+  const forceLogin = Boolean(location.state?.forceLogin);
 
-  if (isLoggedIn()) {
+  if (isLoggedIn() && !forceLogin) {
     const from = location.state?.from;
 
     return <Navigate to={from || (isAdmin() ? "/workflows" : "/events")} replace />;

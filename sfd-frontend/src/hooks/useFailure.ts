@@ -13,6 +13,9 @@ export const useFailures = (workflowId: number | null) => {
     api
       .get<Failure[]>(`/dashboard/failures/workflow/${workflowId}`)
       .then(res => setFailures(res.data))
+      .catch(err => {
+        console.error("Failed to fetch failures:", err);
+      })
       .finally(() => setLoading(false));
   }, [workflowId]);
 

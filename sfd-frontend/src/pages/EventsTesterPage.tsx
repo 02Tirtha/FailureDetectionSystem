@@ -20,11 +20,12 @@ const EventsTesterPage = () => {
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/workflows/all")
+  fetch(`${import.meta.env.VITE_API_URL}/api/workflows/all`)
       .then((res) => res.json())
       .then((data: Workflow[]) => {
         setWorkflows(data);
-      });
+      })
+       .catch(err => console.error(err));
   }, []);
 
   useEffect(() => {
@@ -34,12 +35,13 @@ const EventsTesterPage = () => {
       return;
     }
 
-    fetch(`http://localhost:8080/api/workflow-steps?workflowId=${workflowId}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/workflow-steps?workflowId=${workflowId}`)
       .then((res) => res.json())
       .then((data: WorkflowStep[]) => {
         setSteps(data);
         setStepName(data[0]?.stepName ?? "");
-      });
+      })
+       .catch(err => console.error(err));;
   }, [workflowId]);
 
   const handleSubmit = async () => {
