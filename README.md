@@ -16,8 +16,8 @@ Silent Failure Detection System: Full stack application that detects missing or 
 ## 🛠️ Tech Stack
 - Backend: Spring Boot
 - Frontend: React
-- Database: MySQL
-- Deployment: Docker (learning), Railway
+- Database: MySQL (Railway)
+- Deployment: Docker, Render (Backend)
 
 ---
 
