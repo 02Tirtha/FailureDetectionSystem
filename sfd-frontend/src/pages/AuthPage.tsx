@@ -102,18 +102,20 @@ const AuthPage = () => {
       const data = isJson ? await res.json() : await res.text();
 
       if (!res.ok) {
-        const errorMessage = getErrorMessage(data).toLowerCase();
-        
+        const errorMessage = getErrorMessage(data);
+        const lowerMessage = errorMessage.toLowerCase();
 
         if (
           mode === "signup" &&
-          (errorMessage.includes("user already exists") ||
-            errorMessage.includes("email already exists"))
+          (res.status === 409 ||
+            lowerMessage.includes("user already exists") ||
+            lowerMessage.includes("email already exists") ||
+            res.status >= 500)
         ) {
-           setErrors({ email: "Email already exists." });
-      } else {
-        setErrors({ form: errorMessage });
-      }
+          setErrors({ email: "Email already exists." });
+        } else {
+          setErrors({ form: errorMessage });
+        }
 
         return;
       }
@@ -293,5 +295,4 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
-
 
