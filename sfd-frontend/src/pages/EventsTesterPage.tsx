@@ -18,6 +18,7 @@ const EventsTesterPage = () => {
   const [stepName, setStepName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
   fetch(`${import.meta.env.VITE_API_URL}/api/workflows/all`)
@@ -48,10 +49,16 @@ const EventsTesterPage = () => {
     if (!workflowId || !stepName) return;
 
     setLoading(true);
-    await triggerStep(stepName, Number(workflowId));
-    setLoading(false);
-
-    setShowSuccess(true);
+    setError(null);
+    try {
+      await triggerStep(stepName, Number(workflowId));
+      setShowSuccess(true);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to submit event. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -102,6 +109,8 @@ const EventsTesterPage = () => {
             <label>Event Time</label>
             <div className="helper">Uses current time when you submit.</div>
           </div>
+
+          {error && <div className="badge badge-danger">{error}</div>}
 
           <button
             onClick={handleSubmit}

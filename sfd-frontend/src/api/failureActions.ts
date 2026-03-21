@@ -1,3 +1,12 @@
+const readResponseBody = async (res: Response) => {
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+  const text = await res.text();
+  return text ? text : null;
+};
+
 export const resolveFailure = async (stepName: string, workflowId: number) => {
   const userEmail = localStorage.getItem("userEmail") || "";
    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/events/resolve`, {
@@ -12,7 +21,7 @@ export const resolveFailure = async (stepName: string, workflowId: number) => {
     throw new Error("Failed to resolve failure");
   }
 
-  return res.json();
+  return readResponseBody(res);
 };
 
 export const triggerStep = async (
@@ -38,5 +47,5 @@ export const triggerStep = async (
     throw new Error("Failed to trigger step");
   }
 
-  return res.json();
+  return readResponseBody(res);
 };

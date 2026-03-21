@@ -30,6 +30,7 @@ const RecoveryPage = () => {
     } catch (err) {
       console.error(err);
       setError("Failed to run recovery action. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
