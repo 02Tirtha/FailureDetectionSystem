@@ -1,15 +1,30 @@
 const readResponseBody = async (res: Response) => {
   const contentType = res.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
-    return res.json();
+    try {
+      return await res.json();
+    } catch {
+      return null;
+    }
   }
   const text = await res.text();
   return text ? text : null;
 };
 
+const fetchWithTimeout = async (input: RequestInfo, init: RequestInit, timeoutMs = 15000) => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
 export const resolveFailure = async (stepName: string, workflowId: number) => {
   const userEmail = localStorage.getItem("userEmail") || "";
-   const res = await fetch(`${import.meta.env.VITE_API_URL}/api/events/resolve`, {
+   const res = await fetchWithTimeout(`${import.meta.env.VITE_API_URL}/api/events/resolve`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -30,7 +45,7 @@ export const triggerStep = async (
   occurredAt?: string
 ) => {
   const userEmail = localStorage.getItem("userEmail") || "";
-  const res =await fetch(`${import.meta.env.VITE_API_URL}/api/events`, {
+  const res = await fetchWithTimeout(`${import.meta.env.VITE_API_URL}/api/events`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
