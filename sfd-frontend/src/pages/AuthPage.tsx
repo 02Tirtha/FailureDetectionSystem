@@ -76,6 +76,7 @@ const AuthPage = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setErrors({});
+      setShowSignupSuccess(false); //  reset popup
 
     try {
       const url =
@@ -101,25 +102,19 @@ const AuthPage = () => {
       const data = isJson ? await res.json() : await res.text();
 
       if (!res.ok) {
-        const errorMessage = getErrorMessage(data);
-        const nextErrors: {
-          name?: string;
-          email?: string;
-          password?: string;
-          form?: string;
-        } = {};
+        const errorMessage = getErrorMessage(data).toLowerCase();
+        
 
         if (
           mode === "signup" &&
-          (errorMessage.toLowerCase().includes("user already exists") ||
-            errorMessage.toLowerCase().includes("email already exists"))
+          (errorMessage.includes("user already exists") ||
+            errorMessage.includes("email already exists"))
         ) {
-          nextErrors.email = "Email already exists.";
-        } else {
-          nextErrors.form = errorMessage;
-        }
+           setErrors({ email: "Email already exists." });
+      } else {
+        setErrors({ form: errorMessage });
+      }
 
-        setErrors(nextErrors);
         return;
       }
       // ✅ LOGIN SUCCESS
@@ -219,7 +214,11 @@ const AuthPage = () => {
               </select>
             </div>
           )}
-
+          {errors.email && (
+            <div style={{ color: "#dc2626", fontSize: 13 }}>
+              {errors.email}
+            </div>
+          )}
           <div>
             <label>Email</label>
             <input
