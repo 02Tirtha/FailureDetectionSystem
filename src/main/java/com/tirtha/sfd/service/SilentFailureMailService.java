@@ -1,21 +1,30 @@
 package com.tirtha.sfd.service;
 
-import com.tirtha.sfd.model.SilentFailure;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import com.tirtha.sfd.model.SilentFailure;
+
 @Service
-@RequiredArgsConstructor
 public class SilentFailureMailService {
 
     private final JavaMailSender mailSender;
+    private final String alertRecipient;
+
+    public SilentFailureMailService(
+            JavaMailSender mailSender,
+            @Value("${mail_username}") String alertRecipient
+    ) {
+        this.mailSender = mailSender;
+        this.alertRecipient = alertRecipient;
+    }
 
     public void sendAlert(SilentFailure failure) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo("tjhaveri99@example.com"); // change to your recipient
+            message.setTo(alertRecipient);
             message.setSubject("Silent Failure Alert: " + failure.getStepName());
             message.setText(
                 "Workflow ID: " + failure.getWorkflow().getId() + "\n" +
@@ -29,8 +38,8 @@ public class SilentFailureMailService {
             System.out.println("Alert email sent for failure: " + failure.getStepName());
         } catch (Exception e) {
             System.err.println("Failed to send alert email: " + e.getMessage());
+            e.printStackTrace(System.err);
         }
     }
 }
  
-

@@ -11,7 +11,7 @@ const readResponseBody = async (res: Response) => {
   return text ? text : null;
 };
 
-const fetchWithTimeout = async (input: RequestInfo, init: RequestInit, timeoutMs = 15000) => {
+const fetchWithTimeout = async (input: RequestInfo, init: RequestInit, timeoutMs = 45000) => {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
@@ -20,6 +20,14 @@ const fetchWithTimeout = async (input: RequestInfo, init: RequestInit, timeoutMs
   } finally {
     window.clearTimeout(timeoutId);
   }
+};
+
+const toLocalIsoString = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  );
 };
 
 export const resolveFailure = async (stepName: string, workflowId: number) => {
@@ -53,7 +61,7 @@ export const triggerStep = async (
     },
     body: JSON.stringify({
       stepName,
-      occurredAt: occurredAt || new Date().toISOString(),
+      occurredAt: occurredAt || toLocalIsoString(new Date()),
       workflow: { id: workflowId }
     })
   });

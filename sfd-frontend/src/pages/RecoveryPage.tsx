@@ -10,8 +10,14 @@ const RecoveryPage = () => {
 
   const navigate = useNavigate();
 
+  const toLocalInputValue = (date: Date) => {
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+      `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
   const [occurredAt, setOccurredAt] = useState(
-    new Date().toISOString().slice(0, 16)
+    toLocalInputValue(new Date())
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
