@@ -6,16 +6,27 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 @RequiredArgsConstructor
 public class SilentFailureMailService {
 
     private final JavaMailSender mailSender;
 
+    @Value("${alert.mail.to:tjhaveri99@example.com}")
+    private String alertTo;
+
+    @Value("${spring.mail.username:}")
+    private String alertFrom;
+
     public void sendAlert(SilentFailure failure) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo("tjhaveri99@example.com"); // change to your recipient
+            message.setTo(alertTo);
+            if (alertFrom != null && !alertFrom.isBlank()) {
+                message.setFrom(alertFrom);
+            }
             message.setSubject("Silent Failure Alert: " + failure.getStepName());
             message.setText(
                 "Workflow ID: " + failure.getWorkflow().getId() + "\n" +

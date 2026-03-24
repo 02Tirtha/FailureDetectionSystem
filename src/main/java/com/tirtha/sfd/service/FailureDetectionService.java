@@ -143,7 +143,72 @@ public class FailureDetectionService {
             }
         }
 
+        // Detect missing next step when expected time has already passed
+        detectMissingNextStepByTime(workflow, currentEvent, steps, LocalDateTime.now());
 
+    }
+
+    private void detectMissingNextStepByTime(
+            Workflow workflow,
+            Event lastEvent,
+            List<WorkflowStep> steps,
+            LocalDateTime now
+    ) {
+        if (lastEvent == null || steps == null || steps.isEmpty()) {
+            return;
+        }
+
+        if (lastEvent.getOccurredAt() == null || lastEvent.getStepName() == null) {
+            return;
+        }
+
+        String lastStepName = lastEvent.getStepName().trim();
+        WorkflowStep lastStepDef = steps.stream()
+                .filter(s -> s.getStepName().trim().equalsIgnoreCase(lastStepName))
+                .findFirst()
+                .orElse(null);
+
+        if (lastStepDef == null || lastStepDef.getExpectedTimeSeconds() == null) {
+            return;
+        }
+
+        int nextOrder = lastStepDef.getStepOrder() + 1;
+        WorkflowStep nextStep = steps.stream()
+                .filter(s -> s.getStepOrder() == nextOrder)
+                .findFirst()
+                .orElse(null);
+
+        if (nextStep == null) {
+            return; // No next step; workflow completed.
+        }
+
+        LocalDateTime deadline = lastEvent.getOccurredAt()
+                .plusSeconds(lastStepDef.getExpectedTimeSeconds());
+        if (now.isBefore(deadline)) {
+            return;
+        }
+
+        Optional<Event> nextEventOpt =
+                eventRepository.findFirstByWorkflowAndStepNameAndOccurredAtAfterOrderByOccurredAtAsc(
+                        workflow,
+                        nextStep.getStepName().trim(),
+                        lastEvent.getOccurredAt()
+                );
+
+        if (nextEventOpt.isPresent()) {
+            return;
+        }
+
+        long overdueBySeconds = Duration.between(deadline, now).getSeconds();
+        createOrUpdateFailure(
+                workflow,
+                nextStep.getStepName(),
+                FailureType.MISSING_STEP,
+                Severity.HIGH,
+                "Next step missing for " + overdueBySeconds +
+                        " seconds (expected within " +
+                        lastStepDef.getExpectedTimeSeconds() + " seconds)"
+        );
     }
 
     private void createOrUpdateFailure(
