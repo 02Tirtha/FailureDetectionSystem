@@ -14,10 +14,14 @@ import com.tirtha.sfd.repository.SilentFailureRepository;
 import com.tirtha.sfd.repository.WorkflowRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
 public class EventService {
+
+    private static final Logger logger = LoggerFactory.getLogger(EventService.class);
 
     private final EventRepository eventRepository;
     private final WorkflowRepository workflowRepository;
@@ -26,7 +30,7 @@ public class EventService {
 
     /* ================= HANDLE SINGLE EVENT ================= */
     @Transactional
-    public void handleEvent(Event event) {
+    public Event handleEvent(Event event) {
 
         if (event.getWorkflow() == null || event.getWorkflow().getId() == null) {
             throw new RuntimeException("workflow.id is required");
@@ -37,11 +41,16 @@ public class EventService {
                 .orElseThrow(() -> new RuntimeException("Workflow not found: " + workflowId));
 
         event.setWorkflow(workflow);
-        eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
 
-        autoResolveFailures(event);
+        try {
+            autoResolveFailures(savedEvent);
+            failureDetectionService.detectAndRecordFailures(savedEvent);
+        } catch (Exception ex) {
+            logger.warn("Failure detection skipped for event id {}: {}", savedEvent.getId(), ex.getMessage());
+        }
 
-        failureDetectionService.detectAndRecordFailures(event);
+        return savedEvent;
     }
 
     /* ================= AUTO RESOLVE ================= */

@@ -36,13 +36,19 @@ public class EventController {
     // ---------------- CREATE EVENTS ----------------
 
     @PostMapping
-    public ResponseEntity<Void> receiveEvent(
+    public ResponseEntity<EventResponse> receiveEvent(
             @RequestHeader(value = "X-User-Email", required = false) String userEmail,
             @RequestBody Event event
     ) {
         authorizationService.requireAnyRole(userEmail, Role.USER, Role.ADMIN);
-        eventService.handleEvent(event);
-        return ResponseEntity.ok().build();
+        Event savedEvent = eventService.handleEvent(event);
+        EventResponse response = new EventResponse(
+                savedEvent.getId(),
+                savedEvent.getStepName(),
+                savedEvent.getOccurredAt(),
+                "Event created successfully"
+        );
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/batch")
@@ -123,5 +129,13 @@ public class EventController {
         private Long workflowId;
         private String stepName;
         private LocalDateTime occurredAt;
+    }
+
+    @Data
+    public static class EventResponse {
+        private final Long id;
+        private final String stepName;
+        private final LocalDateTime occurredAt;
+        private final String message;
     }
 }
