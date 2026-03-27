@@ -43,7 +43,7 @@ boolean stepOccurred(
     boolean existsByWorkflowAndStepName(Workflow workflow, String stepName);
 
     // Optional: find the last occurrence of a step
-    Optional<Event> findTopByWorkflowAndStepNameOrderByOccurredAtDesc(Workflow workflow, String stepName);
+    Event findTopByWorkflowAndStepNameOrderByOccurredAtDesc(Workflow workflow, String stepName);
 
     boolean existsByWorkflow_IdAndStepName(Long id, String stepName);
 
@@ -97,4 +97,6 @@ boolean stepOccurred(
         LocalDateTime occurredAt
 );
 //     List<Event> findByWorkflowIdAndOccurredAtBeforeOrderByOccurredAt(Long id, LocalDateTime occurredAt);
+
+    Event findTopByWorkflowOrderByIdAsc(Workflow workflow);
 }

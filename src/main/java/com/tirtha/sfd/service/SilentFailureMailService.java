@@ -4,6 +4,7 @@ import com.tirtha.sfd.model.SilentFailure;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,14 @@ public class SilentFailureMailService {
     @Value("${spring.mail.username:}")
     private String alertFrom;
 
+    /**
+     * FIX: @Async ensures SMTP never blocks the calling thread or any
+     * open DB transaction. Each email runs in its own background thread.
+     * If called from FailureDetectionService (which is already @Async),
+     * this provides a second layer of protection — but it's also safe
+     * to call from any synchronous context (e.g. the scheduler).
+     */
+    @Async
     public void sendAlert(SilentFailure failure) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -43,5 +52,3 @@ public class SilentFailureMailService {
         }
     }
 }
- 
-

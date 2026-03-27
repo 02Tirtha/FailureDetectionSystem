@@ -17,14 +17,12 @@ import com.tirtha.sfd.model.Role;
 import com.tirtha.sfd.model.Workflow;
 import com.tirtha.sfd.service.AuthorizationService;
 import com.tirtha.sfd.service.EventService;
+import com.tirtha.sfd.service.FailureDetectionService;
 import com.tirtha.sfd.service.FailureResolutionService;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
-// X-User-Email :
-// Identify the user (by email)
-// Look up their role (ADMIN or USER)
 @RestController
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
@@ -33,6 +31,8 @@ public class EventController {
     private final EventService eventService;
     private final FailureResolutionService resolutionService;
     private final AuthorizationService authorizationService;
+    private final FailureDetectionService failureDetectionService;
+
     // ---------------- CREATE EVENTS ----------------
 
     @PostMapping
@@ -41,7 +41,16 @@ public class EventController {
             @RequestBody Event event
     ) {
         authorizationService.requireAnyRole(userEmail, Role.USER, Role.ADMIN);
+
+        // 1. Save event — fast, synchronous
         Event savedEvent = eventService.handleEvent(event);
+
+        // 2. FIX: detectAndRecordFailures is now @Async — this call returns
+        //    immediately. Failure detection + email sending happen in a
+        //    background thread, so the HTTP response is never delayed by SMTP.
+        failureDetectionService.detectAndRecordFailures(savedEvent);
+
+        // 3. Respond right away — no waiting for detection or email
         EventResponse response = new EventResponse(
                 savedEvent.getId(),
                 savedEvent.getStepName(),
@@ -65,11 +74,12 @@ public class EventController {
             event.setStepName(request.getStepName());
             event.setOccurredAt(request.getOccurredAt());
 
-            eventService.handleEvent(event);
+            Event saved = eventService.handleEvent(event);
+            // Also run async detection for batch events
+            failureDetectionService.detectAndRecordFailures(saved);
         }
         return ResponseEntity.ok("Events created successfully");
     }
-
 
     // ---------------- READ EVENTS ----------------
 

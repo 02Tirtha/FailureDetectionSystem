@@ -28,11 +28,22 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
     // Optional: Get all failures by type
     List<SilentFailure> findByFailureType(FailureType type);
 
-    List<SilentFailure> findByWorkflowId(Long workflowId);
-
     List<SilentFailure> findByWorkflowAndStepName(Workflow workflow, String stepName);
 
     List<SilentFailure> findByWorkflow_IdAndStepName(Long workflowId, String stepName);
+
+    Optional<SilentFailure> findTopByWorkflowAndStepNameAndFailureTypeOrderByDetectedAtDesc1(
+        Workflow workflow,
+        String stepName,
+        FailureType failureType
+);
+
+    @Modifying
+        @Query("""
+            DELETE FROM SilentFailure f
+            WHERE f.workflow.id = :workflowId
+        """)
+        void deleteByWorkflowId(@Param("workflowId") Long workflowId);
 
     @Query("select e.stepName from Event e where e.workflow = :workflow")
     List<String> findStepNamesByWorkflow(@Param("workflow") Workflow workflow);
@@ -44,6 +55,19 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
                 Workflow workflow,
                 String stepName,
                 FailureType failureType
+        );
+
+        @Modifying
+        @Query("""
+            DELETE FROM SilentFailure f
+            WHERE f.workflow = :workflow
+            AND f.stepName = :stepName
+            AND f.failureType = :failureType
+        """)
+        void deleteByWorkflowAndStepNameAndFailureType(
+                @Param("workflow") Workflow workflow,
+                @Param("stepName") String stepName,
+                @Param("failureType") FailureType failureType
         );
 
             @Modifying
@@ -58,7 +82,6 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
                 @Param("stepName") String stepName
         );
 
-        long count();
         long countBySeverity(com.tirtha.sfd.model.Severity high);        
         long countByFailureType(FailureType failureType);
 
@@ -72,6 +95,8 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
         Object[] getFailureStats(@Param("workflowId") Long workflowId);
 
         Object[] getFailureStatsByWorkflowId(Long id);
+
+    public List<SilentFailure> findByWorkflow_IdAndResolvedFalse(Long workflowId);
 
 
 }

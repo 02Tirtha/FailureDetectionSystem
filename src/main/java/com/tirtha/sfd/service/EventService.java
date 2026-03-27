@@ -2,6 +2,8 @@ package com.tirtha.sfd.service;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,8 +16,6 @@ import com.tirtha.sfd.repository.SilentFailureRepository;
 import com.tirtha.sfd.repository.WorkflowRepository;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +47,7 @@ public class EventService {
             autoResolveFailures(savedEvent);
             failureDetectionService.detectAndRecordFailures(savedEvent);
         } catch (Exception ex) {
-            logger.warn("Failure detection skipped for event id {}: {}", savedEvent.getId(), ex.getMessage());
+            logger.error("Failure detection failed for event id {}: {}", savedEvent.getId(), ex.getMessage(), ex);
         }
 
         return savedEvent;

@@ -2,9 +2,10 @@ package com.tirtha.sfd.service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,242 +30,152 @@ public class FailureDetectionService {
     private final SilentFailureMailService mailService;
     private final WorkflowStepRepository workflowStepRepository;
 
-    @Transactional
+    /**
+     * FIX: @Async so the HTTP thread returns immediately after saving the event.
+     * Email is sent AFTER the @Transactional method below commits,
+     * so there are no SMTP delays inside an open DB transaction.
+     */
+    @Async
     public void detectAndRecordFailures(Event currentEvent) {
+        List<SilentFailure> newFailures = detectAndSave(currentEvent);
+
+        // Send emails AFTER transaction has committed — outside @Transactional
+        for (SilentFailure failure : newFailures) {
+            mailService.sendAlert(failure);
+        }
+    }
+
+    /**
+     * All DB work happens here inside its own transaction.
+     * Returns the list of newly created failures so the caller
+     * can send emails after the transaction commits.
+     */
+    @Transactional
+    public List<SilentFailure> detectAndSave(Event currentEvent) {
+
+        List<SilentFailure> newFailures = new ArrayList<>();
 
         Workflow workflow = currentEvent.getWorkflow();
-        String currentStep = currentEvent.getStepName().trim();
+        String currentStep = currentEvent.getStepName();
         LocalDateTime currentTime = currentEvent.getOccurredAt();
 
         List<WorkflowStep> steps =
                 workflowStepRepository.findByWorkflowOrderByStepOrderAsc(workflow);
 
         WorkflowStep currentStepDef = steps.stream()
-                .filter(s -> s.getStepName().equalsIgnoreCase(currentStep))
+                .filter(s -> s.getStepName().equals(currentStep))
                 .findFirst()
                 .orElse(null);
 
-        if (currentStepDef == null) return;
+        if (currentStepDef == null) return newFailures;
 
         int currentOrder = currentStepDef.getStepOrder();
         boolean isLastStep =
                 currentOrder == steps.get(steps.size() - 1).getStepOrder();
 
-        resolveMissingForStep(workflow, currentStepDef.getStepName());
-
-        Long currentEventId = currentEvent.getId();
-        if (currentEventId == null) {
-            return;
-        }
-
-        WorkflowStep firstStep = steps.get(0);
-        Event lastStartEvent =
-                eventRepository.findTopByWorkflowAndStepNameAndIdLessThanEqualOrderByIdDesc(
-                        workflow,
-                        firstStep.getStepName().trim(),
-                        currentEventId
-                );
-        Long runStartId =
-                (lastStartEvent != null) ? lastStartEvent.getId() : currentEventId;
-
-        boolean hasMissingEarlier = false;
-
-        /* 🔴 MISSING STEP DETECTION — only past steps */
+        /* 🔴 MISSING STEP DETECTION */
         for (WorkflowStep step : steps) {
             if (step.getStepOrder() >= currentOrder) break;
 
-            boolean occurredInRun =
-                    eventRepository.existsByWorkflowAndStepNameAndIdBetween(
-                            workflow,
-                            step.getStepName().trim(),
-                            runStartId,
-                            currentEventId
-                    );
+            boolean occurred =
+                    eventRepository.existsByWorkflowAndStepName(workflow, step.getStepName());
 
-            if (!occurredInRun) {
-                hasMissingEarlier = true;
-                createOrUpdateFailure(
+            if (!occurred) {
+                SilentFailure f = createFailureOnce(
                         workflow,
                         step.getStepName(),
                         FailureType.MISSING_STEP,
-                        Severity.HIGH,
                         "Expected step did not occur"
                 );
+                if (f != null) newFailures.add(f);
             }
         }
 
-        /* 🟠 DELAYED STEP DETECTION — only if previous event exists and no missing steps */
+        /* 🟠 DELAYED STEP DETECTION */
         if (currentOrder > 1) {
-            if (!hasMissingEarlier) {
-                WorkflowStep prevStep = steps.stream()
-                        .filter(s -> s.getStepOrder() == currentOrder - 1)
-                        .findFirst()
-                        .orElse(null);
+            WorkflowStep prevStep = steps.stream()
+                    .filter(s -> s.getStepOrder() == currentOrder - 1)
+                    .findFirst()
+                    .orElse(null);
 
-                if (prevStep != null) {
-                    Event lastEventBeforeCurrent =
-                            eventRepository.findTopByWorkflowAndIdLessThanOrderByIdDesc(
-                                    workflow,
-                                    currentEventId
-                            );
+            if (prevStep != null) {
+                Event prevEvent =
+                        eventRepository.findTopByWorkflowAndStepNameOrderByOccurredAtDesc(
+                                workflow, prevStep.getStepName());
 
-                    if (lastEventBeforeCurrent != null
-                            && lastEventBeforeCurrent.getStepName().trim()
-                                    .equalsIgnoreCase(prevStep.getStepName().trim())) {
+                if (prevEvent != null) {
+                    long delay =
+                            Duration.between(prevEvent.getOccurredAt(), currentTime).getSeconds();
 
-                        Event prevEvent =
-                                eventRepository.findTopByWorkflowAndStepNameAndIdLessThanOrderByIdDesc(
-                                        workflow,
-                                        prevStep.getStepName().trim(),
-                                        currentEventId
-                                );
-
-                        if (prevEvent != null
-                                && prevEvent.getId() >= runStartId
-                                && prevStep.getExpectedTimeSeconds() != null) {
-                            long delay = Duration.between(prevEvent.getOccurredAt(), currentTime).getSeconds();
-
-                            if (delay > prevStep.getExpectedTimeSeconds()) {
-                                createOrUpdateFailure(
-                                        workflow,
-                                        currentStep,
-                                        FailureType.DELAYED_STEP,
-                                        Severity.MEDIUM,
-                                        "Step delayed by " + delay +
-                                                " seconds (expected " +
-                                                prevStep.getExpectedTimeSeconds() + ")"
-                                );
-                            } else if (!isLastStep) {
-                                silentFailureRepository.resolveDelayedSteps(workflow.getId(), currentStep);
-                            }
-                        }
+                    if (delay > currentStepDef.getExpectedTimeSeconds()) {
+                        SilentFailure f = createFailureOnce(
+                                workflow,
+                                currentStep,
+                                FailureType.DELAYED_STEP,
+                                "Step delayed by " + delay +
+                                        " seconds (expected " +
+                                        currentStepDef.getExpectedTimeSeconds() + ")"
+                        );
+                        if (f != null) newFailures.add(f);
+                    } else if (!isLastStep) {
+                        silentFailureRepository.resolveDelayedSteps(
+                                workflow.getId(), currentStep
+                        );
                     }
                 }
             }
         }
 
-        // Detect missing next step when expected time has already passed
-        detectMissingNextStepByTime(workflow, currentEvent, steps, LocalDateTime.now());
-
+       
+        return newFailures;
     }
 
-    private void detectMissingNextStepByTime(
-            Workflow workflow,
-            Event lastEvent,
-            List<WorkflowStep> steps,
-            LocalDateTime now
-    ) {
-        if (lastEvent == null || steps == null || steps.isEmpty()) {
-            return;
-        }
-
-        if (lastEvent.getOccurredAt() == null || lastEvent.getStepName() == null) {
-            return;
-        }
-
-        String lastStepName = lastEvent.getStepName().trim();
-        WorkflowStep lastStepDef = steps.stream()
-                .filter(s -> s.getStepName().trim().equalsIgnoreCase(lastStepName))
-                .findFirst()
-                .orElse(null);
-
-        if (lastStepDef == null || lastStepDef.getExpectedTimeSeconds() == null) {
-            return;
-        }
-
-        int nextOrder = lastStepDef.getStepOrder() + 1;
-        WorkflowStep nextStep = steps.stream()
-                .filter(s -> s.getStepOrder() == nextOrder)
-                .findFirst()
-                .orElse(null);
-
-        if (nextStep == null) {
-            return; // No next step; workflow completed.
-        }
-
-        LocalDateTime deadline = lastEvent.getOccurredAt()
-                .plusSeconds(lastStepDef.getExpectedTimeSeconds());
-        if (now.isBefore(deadline)) {
-            return;
-        }
-
-        Optional<Event> nextEventOpt =
-                eventRepository.findFirstByWorkflowAndStepNameAndOccurredAtAfterOrderByOccurredAtAsc(
-                        workflow,
-                        nextStep.getStepName().trim(),
-                        lastEvent.getOccurredAt()
-                );
-
-        if (nextEventOpt.isPresent()) {
-            return;
-        }
-
-        long overdueBySeconds = Duration.between(deadline, now).getSeconds();
-        createOrUpdateFailure(
-                workflow,
-                nextStep.getStepName(),
-                FailureType.MISSING_STEP,
-                Severity.HIGH,
-                "Next step missing for " + overdueBySeconds +
-                        " seconds (expected within " +
-                        lastStepDef.getExpectedTimeSeconds() + " seconds)"
-        );
-    }
-
-    private void createOrUpdateFailure(
+    /**
+     * Create failure ONLY if it does not already exist.
+     * Returns the saved SilentFailure, or null if it already existed.
+     * NOTE: mailService.sendAlert() is intentionally NOT called here —
+     * it is called by the @Async method after the transaction commits.
+     */
+    private SilentFailure createFailureOnce(
             Workflow workflow,
             String stepName,
             FailureType type,
-            Severity severity,
             String message
     ) {
-        Optional<SilentFailure> existingFailureOpt =
-                silentFailureRepository.findTopByWorkflowAndStepNameAndFailureTypeOrderByDetectedAtDesc(
-                        workflow,
-                        stepName,
-                        type
-                );
+        boolean exists =
+                silentFailureRepository
+                        .existsByWorkflowAndStepNameAndFailureType(
+                                workflow, stepName, type
+                        );
 
-        if (existingFailureOpt.isPresent()) {
-            SilentFailure existingFailure = existingFailureOpt.get();
+        if (exists) return null;
 
-            existingFailure.setMessage(message);
-            existingFailure.setSeverity(severity);
-            silentFailureRepository.save(existingFailure);
-        } else {
-            SilentFailure failure = new SilentFailure();
-            failure.setWorkflow(workflow);
-            failure.setStepName(stepName);
-            failure.setFailureType(type);
-            failure.setSeverity(severity);
-            failure.setMessage(message);
-            failure.setDetectedAt(LocalDateTime.now());
-
-            silentFailureRepository.save(failure);
-            mailService.sendAlert(failure);
-        }
+        SilentFailure failure = new SilentFailure();
+        failure.setWorkflow(workflow);
+        failure.setStepName(stepName);
+        failure.setFailureType(type);
+        failure.setSeverity(Severity.HIGH);
+        failure.setMessage(message);
+        failure.setDetectedAt(LocalDateTime.now());
+        
+        return silentFailureRepository.save(failure);
     }
 
-    private void resolveMissingForStep(Workflow workflow, String stepName) {
-        List<SilentFailure> missingFailures =
-                silentFailureRepository.findByWorkflowAndStepNameAndFailureType(
-                        workflow,
-                        stepName,
-                        FailureType.MISSING_STEP
-                );
-
-        if (missingFailures.isEmpty()) {
-            return;
-        }
-
-        silentFailureRepository.deleteAll(missingFailures);
-    }
-
+    /**
+     * Detect failures for all events of a workflow (scheduler).
+     * This is called by the scheduler, not the HTTP thread, so
+     * @Async is not needed here — but emails are still sent after
+     * the transaction commits.
+     */
     @Transactional
     public void detectFailures(Long workflowId) {
-        Event latestEvent = eventRepository.findTopByWorkflowIdOrderByOccurredAtDesc(workflowId);
-        if (latestEvent != null) {
-            detectAndRecordFailures(latestEvent);
+        List<Event> events =
+                eventRepository.findByWorkflowIdOrderByOccurredAt(workflowId);
+        for (Event event : events) {
+            List<SilentFailure> newFailures = detectAndSave(event);
+            for (SilentFailure f : newFailures) {
+                mailService.sendAlert(f);
+            }
         }
     }
 
@@ -272,12 +183,7 @@ public class FailureDetectionService {
         detectFailures(workflowId);
     }
 
-    @Transactional
-    public void resolveFailure(Long workflowId) {
-        List<SilentFailure> failures =
-                silentFailureRepository.findByWorkflow_Id(workflowId);
-        silentFailureRepository.deleteAll(failures);
-    }
+    
 
     @Transactional
     public void resolveDelayedStep(Long workflowId, String stepName) {

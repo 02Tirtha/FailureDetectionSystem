@@ -42,4 +42,5 @@ public class SilentFailure {
     @ManyToOne
     @JoinColumn(name = "workflow_id", nullable = false)
     private Workflow workflow;
+
 }
