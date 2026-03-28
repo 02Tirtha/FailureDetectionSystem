@@ -32,11 +32,7 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
 
     List<SilentFailure> findByWorkflow_IdAndStepName(Long workflowId, String stepName);
 
-    Optional<SilentFailure> findTopByWorkflowAndStepNameAndFailureTypeOrderByDetectedAtDesc1(
-        Workflow workflow,
-        String stepName,
-        FailureType failureType
-);
+   
 
     @Modifying
         @Query("""
@@ -70,7 +66,7 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
                 @Param("failureType") FailureType failureType
         );
 
-            @Modifying
+        @Modifying
         @Query("""
         DELETE FROM SilentFailure f
         WHERE f.workflow.id = :workflowId
@@ -95,8 +91,6 @@ public interface SilentFailureRepository extends JpaRepository<SilentFailure, Lo
         Object[] getFailureStats(@Param("workflowId") Long workflowId);
 
         Object[] getFailureStatsByWorkflowId(Long id);
-
-    public List<SilentFailure> findByWorkflow_IdAndResolvedFalse(Long workflowId);
 
 
 }

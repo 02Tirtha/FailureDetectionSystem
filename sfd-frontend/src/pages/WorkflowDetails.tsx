@@ -42,8 +42,10 @@ const WorkflowDetails = () => {
               <td>
                 <span className="badge badge-danger">Open</span>
               </td>
-              <td>
-                {f.detectedAt ? new Date(f.detectedAt).toLocaleString() : "-"}
+             <td>
+                {f.detectedAt
+                  ? new Date(f.detectedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+                  : "-"}
               </td>
               <td>
                 <button
