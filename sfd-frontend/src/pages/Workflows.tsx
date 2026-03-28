@@ -4,6 +4,22 @@ import { Link } from "react-router-dom";
 const Workflows = () => {
   const { data: workflows, loading } = useWorkflowsDashboard();
 
+  const formatLastFailureTime = (value?: string | null) => {
+    if (!value) return "-";
+    const isoBase = value.includes("T") ? value : value.replace(" ", "T");
+    // Normalize fractional seconds to 3 digits (JS Date supports milliseconds).
+    const normalized = isoBase.replace(/\.(\d{3})\d+$/, ".$1");
+    const date = new Date(normalized + "Z");
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  };
+
   if (loading) return <p className="page">Loading...</p>;
 
   return (
@@ -38,9 +54,7 @@ const Workflows = () => {
                 <td className="text-center">{w.unresolvedFailures}</td>
 
                 <td>
-                  {w.lastFailureTime
-                    ? new Date(w.lastFailureTime).toLocaleString()
-                    : "—"}
+                  {formatLastFailureTime(w.lastFailureTime)}
                 </td>
 
                 <td className="text-center">

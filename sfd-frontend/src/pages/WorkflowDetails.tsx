@@ -11,6 +11,22 @@ const WorkflowDetails = () => {
   const { failures, loading } = useFailures(workflowId);
   const [selectedFailure, setSelectedFailure] = useState<any>(null);
 
+  const formatDetectedAtTime = (value?: string | null) => {
+    if (!value) return "-";
+    const isoBase = value.includes("T") ? value : value.replace(" ", "T");
+    // Normalize fractional seconds to 3 digits (JS Date supports milliseconds).
+    const normalized = isoBase.replace(/\.(\d{3})\d+$/, ".$1");
+    const date = new Date(normalized + "Z");
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  };
+
   if (loading || workflowId === null)
     return <p className="page">Loading...</p>;
 
@@ -20,6 +36,7 @@ const WorkflowDetails = () => {
       <p className="page-subtitle">
         Active failures only. Resolve to remove them from the list.
       </p>
+      {failures?.[0] && console.log("sample failure", failures[0])}
 
       <table className="table">
         <thead>
@@ -42,10 +59,8 @@ const WorkflowDetails = () => {
               <td>
                 <span className="badge badge-danger">Open</span>
               </td>
-             <td>
-                {f.detectedAt
-                  ? new Date(f.detectedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-                  : "-"}
+              <td>
+                {formatDetectedAtTime(f.detectedAt)}
               </td>
               <td>
                 <button

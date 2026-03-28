@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,8 +83,8 @@ const AuthPage = () => {
     try {
       const url =
         mode === "login"
-          ? `${import.meta.env.VITE_API_URL}/api/auth/login`
-          : `${import.meta.env.VITE_API_URL}/api/auth/register`;
+          ? `${API_URL}/api/auth/login`
+          : `${API_URL}/api/auth/register`;
 
       const body =
         mode === "login"
@@ -295,4 +297,3 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
-

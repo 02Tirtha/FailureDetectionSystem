@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { DashboardStats } from "../types/dashboard";
-import.meta.env.VITE_API_URL;
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-  fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/stats`)
-      .then(res => res.json())
-      .then(data => {
+    fetch(`${API_URL}/api/dashboard/stats`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to load dashboard stats (${res.status})`);
+        }
+        return res.json();
+      })
+      .then((data) => {
         console.log(data);
         setStats(data);
       })
-      .catch(err => console.error(err));
+      .catch((err) => console.error(err));
   }, []);
 
   if (!stats) return <p className="page">Loading dashboard...</p>;

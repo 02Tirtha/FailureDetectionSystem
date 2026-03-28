@@ -14,11 +14,14 @@ export const useWorkflowsDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-      api 
+    api
       .get<WorkflowDashboardItem[]>("/workflows")
-      .then(res => setData(res.data))
-      .finally(()=> setLoading(false));   
-});
+      .then((res) => setData(res.data))
+      .catch((err) => {
+        console.error("Failed to load workflows dashboard:", err);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   return { data, loading };
 };

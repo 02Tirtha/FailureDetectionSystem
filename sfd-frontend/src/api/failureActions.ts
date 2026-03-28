@@ -1,3 +1,5 @@
+const API_URL = import.meta.env.VITE_API_URL;
+
 const readResponseBody = async (res: Response) => {
   const contentType = res.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
@@ -24,15 +26,15 @@ const fetchWithTimeout = async (input: RequestInfo, init: RequestInit, timeoutMs
 
 export const resolveFailure = async (stepName: string, workflowId: number) => {
   const userEmail = localStorage.getItem("userEmail") || "";
-   const res = await fetchWithTimeout(`${import.meta.env.VITE_API_URL}/api/events/resolve`, {
+  const res = await fetchWithTimeout(`${API_URL}/api/events/resolve`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(userEmail ? { "X-User-Email": userEmail } : {})
+      ...(userEmail ? { "X-User-Email": userEmail } : {}),
     },
-    body: JSON.stringify({ workflowId, stepName })
+    body: JSON.stringify({ workflowId, stepName }),
   });
-   if (!res.ok) {
+  if (!res.ok) {
     throw new Error("Failed to resolve failure");
   }
 
@@ -45,20 +47,20 @@ export const triggerStep = async (
   occurredAt?: string
 ) => {
   const userEmail = localStorage.getItem("userEmail") || "";
-  const res = await fetchWithTimeout(`${import.meta.env.VITE_API_URL}/api/events`, {
+  const res = await fetchWithTimeout(`${API_URL}/api/events`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(userEmail ? { "X-User-Email": userEmail } : {})
+      ...(userEmail ? { "X-User-Email": userEmail } : {}),
     },
     body: JSON.stringify({
       stepName,
       occurredAt: occurredAt || new Date().toISOString(),
-      workflow: { id: workflowId }
-    })
+      workflow: { id: workflowId },
+    }),
   });
 
-   if (!res.ok) {
+  if (!res.ok) {
     throw new Error("Failed to trigger step");
   }
 
