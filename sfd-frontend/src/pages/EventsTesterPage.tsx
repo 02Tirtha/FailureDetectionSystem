@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
+import api from "../api/axios";
 import { triggerStep } from "../api/failureActions";
-
-const API_URL = import.meta.env.VITE_API_URL;
 
 interface Workflow {
   id: number;
@@ -23,16 +22,9 @@ const EventsTesterPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/workflows/all`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load workflows (${res.status})`);
-        }
-        return res.json();
-      })
-      .then((data: Workflow[]) => {
-        setWorkflows(data);
-      })
+    api
+      .get<Workflow[]>("/workflows/all")
+      .then((res) => setWorkflows(res.data))
       .catch((err) => console.error(err));
   }, []);
 
@@ -43,16 +35,11 @@ const EventsTesterPage = () => {
       return;
     }
 
-    fetch(`${API_URL}/api/workflow-steps?workflowId=${workflowId}`)
+    api
+      .get<WorkflowStep[]>("/workflow-steps", { params: { workflowId } })
       .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load workflow steps (${res.status})`);
-        }
-        return res.json();
-      })
-      .then((data: WorkflowStep[]) => {
-        setSteps(data);
-        setStepName(data[0]?.stepName ?? "");
+        setSteps(res.data);
+        setStepName(res.data[0]?.stepName ?? "");
       })
       .catch((err) => console.error(err));
   }, [workflowId]);

@@ -1,23 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import api from "../api/axios";
 import type { DashboardStats } from "../types/dashboard";
-
-const API_URL = import.meta.env.VITE_API_URL;
 
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/dashboard/stats`)
+    api
+      .get<DashboardStats>("/dashboard/stats")
       .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load dashboard stats (${res.status})`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        console.log(data);
-        setStats(data);
+        console.log(res.data);
+        setStats(res.data);
       })
       .catch((err) => console.error(err));
   }, []);
