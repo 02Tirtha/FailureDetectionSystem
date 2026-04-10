@@ -15,7 +15,6 @@
 - [API Reference](#-api-reference)
 - [Screenshots](#-screenshots)
 - [Email Alert Format](#-email-alert-format)
-- [Status](#-status)
 - [Author](#-author)
 
 ---
