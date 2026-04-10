@@ -252,15 +252,15 @@ Base URL: `http://localhost:8080`
 
 | Dashboard Overview | Failure Logs |
 |---|---|
-| ![Dashboard](screenshots/dashboard.png) | ![Failures](screenshots/failures.png) |
+| <img src="screenshots/dashboard.png" width="300"/> | <img src="screenshots/failures.png" width="300"/> |
 
 | Workflow View | Email Alert | Add Event |
 |---|---|---|
-| ![Workflows](screenshots/workflows.png) | ![Email](screenshots/email.png) | ![Add Event](screenshots/add-event.png) |
+| <img src="screenshots/workflows.png" width="300"/> | <img src="screenshots/email.png" width="300"/> | <img src="screenshots/add-event.png" width="300"/> |
 
 | Login | Signup |
 |---|---|
-| ![Login](screenshots/login.png) | ![Signup](screenshots/signup.png) |
+| <img src="screenshots/login.png" width="300"/> | <img src="screenshots/signup.png" width="300"/> |
 
 ---
 
