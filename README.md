@@ -77,21 +77,22 @@ SilentFailureDetector/
     │   │   ├── App.css
     │   │   ├── main.tsx
     │   │   └── index.css
-    │   ├── .env                         # Environment variables (API base URL)
+    │   │   └── .env                     # Contains environment variables
     │   ├── index.html
     │   ├── package.json
     │   ├── tsconfig.json
     │   ├── tsconfig.app.json
-    │   └── eslint.config.js
     │
     └── src/main/                        # ☕  Spring Boot Backend
-        ├── java/com/silentfailuredetector/
+        ├── java/com/tirtha/sfd
         │   ├── controller/              # REST API controllers
+        │   ├── config/                  # Includes configuaration for mail & DB & password
         │   ├── service/                 # Business logic & detection engine
         │   ├── scheduler/               # Automated failure scan scheduler
         │   ├── model/                   # JPA entity classes
+        │   ├── dto/                     # Object used to transfer data between layers
         │   ├── repository/              # Spring Data JPA repositories
-        │   └── config/                  # Mail, DB, and app configuration
+        |   ├── SilentFailureDetectorApplication.java
         └── resources/
             └── application.properties   # All app config (DB, mail, scheduler)
 ```
