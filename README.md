@@ -255,8 +255,12 @@ Base URL: `http://localhost:8080`
 | ![Dashboard](screenshots/dashboard.png) | ![Failures](screenshots/failures.png) |
 
 | Workflow View | Email Alert | Add Event |
-|---|---|
+|---|---|---|
 | ![Workflows](screenshots/workflows.png) | ![Email](screenshots/email.png) | ![Add Event](screenshots/add-event.png) |
+
+| Login | Signup |
+|---|---|
+| ![Login](screenshots/login.png) | ![Signup](screenshots/signup.png) |
 
 ---
 
